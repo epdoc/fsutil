@@ -1,4 +1,5 @@
 // import * as checksum from 'checksum';
+import checksum from 'checksum';
 import { isString } from 'epdoc-util';
 import fs from 'fs';
 import * as fx from 'fs-extra';
@@ -10,192 +11,7 @@ export type FolderPath = string;
 export type FileName = string;
 export type FileExt = string; // includes '.'
 
-export function fsEnsureDir(dir: FolderPath, options?: fx.EnsureDirOptions | number): Promise<void> {
-  return fx.ensureDir(dir, options);
-}
-
-export function fsEnsureDirSync(dir: FolderPath, options?: fx.EnsureDirOptions | number): void {
-  return fx.ensureDirSync(dir, options);
-}
-
-export function fsRemove(dir: string): Promise<void> {
-  return fx.remove(dir);
-}
-
-export function fsCopy(src: FilePath, dest: FilePath, options?: fx.CopyOptions): Promise<void> {
-  return fx.copy(src, dest, options);
-}
-
-export function fsCopySync(src: FilePath, dest: FilePath, options?: fx.CopyOptionsSync): void {
-  return fx.copySync(src, dest, options);
-}
-
-export function fsMove(src: FilePath, dest: FilePath, options?: fx.MoveOptions): Promise<void> {
-  return fx.move(src, dest, options);
-}
-
-/**
- * Retrieve the list of matching folders in dir.
- * @param dir
- * @param regex
- */
-export function fsGetFolders(dir: FolderPath, regex?: RegExp): Promise<FolderPath[]> {
-  const results: FolderPath[] = [];
-  return fs.promises
-    .readdir(dir)
-    .then((entries) => {
-      const jobs = [];
-      for (const entry of entries) {
-        const fullPath: FolderPath = path.resolve(dir, entry);
-        const job = isDir(fullPath).then((bIsDir) => {
-          if (bIsDir && (!regex || regex.test(entry))) {
-            results.push(fullPath);
-          }
-        });
-        jobs.push(job);
-      }
-      return Promise.all(jobs);
-    })
-    .then((resp) => {
-      return Promise.resolve(results);
-    });
-}
-
-/**
- * Get the Creation Date of a PDF file by reading it's metadata.
- * @param file
- */
-export function fsGetPdfDate(file: FilePath): Promise<Date | undefined> {
-  return fs.promises
-    .readFile(file)
-    .then((dataBuffer) => {
-      // @ts-ignore
-      return pdf.default(dataBuffer);
-    })
-    .then((data) => {
-      if (data && data.info && isString(data.info.CreationDate)) {
-        let ds = data.info.CreationDate;
-        ds = ds.replace(/^D:/, '');
-        const d: Date = new Date(
-          parseInt(ds.slice(0, 4), 10),
-          parseInt(ds.slice(4, 6), 10) - 1,
-          parseInt(ds.slice(6, 8), 10)
-        );
-        // console.log(d.toString());
-        return Promise.resolve(d);
-      }
-    });
-}
-
-/**
- * Calculate the checksum of a file
- * @param file
- */
-export function fsChecksum(file: FilePath) {
-  return new Promise((resolve, reject) => {
-    // @ts-ignore
-    checksum.file(file, (err, sum) => {
-      if (err) {
-        reject(err);
-      } else {
-        resolve(sum);
-      }
-    });
-  });
-}
-
-/**
- * Use checksums to test if two files are equal
- * @param path1
- * @param path2
- */
-export function fsEqual(path1: FilePath, path2: FilePath): Promise<boolean> {
-  return new Promise((resolve, reject) => {
-    const job1 = fsChecksum(path1);
-    const job2 = fsChecksum(path2);
-    return Promise.all([job1, job2]).then((resps) => {
-      if (resps && resps.length === 2 && resps[0] === resps[1]) {
-        resolve(true);
-      } else {
-        resolve(false);
-      }
-    });
-  });
-}
-
-export async function fsReadJson(file: FilePath): Promise<any> {
-  return new Promise((resolve, reject) => {
-    fs.readFile(file, 'utf8', (err, data) => {
-      if (err) {
-        reject(err);
-      } else {
-        try {
-          const json = JSON.parse(data.toString());
-          resolve(json);
-        } catch (error) {
-          reject(error);
-        }
-      }
-    });
-  });
-}
-
-export function fsWriteJson(file: FilePath, data: any): Promise<void> {
-  const buf = Buffer.from(JSON.stringify(data, null, '  '));
-  return fs.promises.writeFile(file, buf);
-}
-
-export async function fsWriteBase64(file: FilePath, data: string): Promise<void> {
-  const buf = Buffer.from(data, 'base64');
-  return fs.promises.writeFile(file, buf);
-}
-
-export async function isDir(p: FolderPath): Promise<boolean> {
-  return fsDirExists(p);
-}
-
-export async function fsExists(p: FilePath | FolderPath): Promise<boolean> {
-  try {
-    const resp: fs.Stats = await fs.promises.stat(p);
-    return resp.isDirectory() || resp.isFile();
-  } catch (err) {
-    return Promise.resolve(false);
-  }
-}
-
-export async function fsDirExists(p: FolderPath): Promise<boolean> {
-  try {
-    const resp: fs.Stats = await fs.promises.stat(p);
-    return resp.isDirectory();
-  } catch (err) {
-    return Promise.resolve(false);
-  }
-}
-
-export async function fsFileExists(p: FilePath): Promise<boolean> {
-  return fs.promises
-    .stat(p)
-    .then((resp: fs.Stats) => {
-      return resp.isFile();
-    })
-    .catch((err) => {
-      return Promise.resolve(false);
-    });
-}
-
-export async function fsCreatedAt(p: FilePath): Promise<Date> {
-  return fs.promises
-    .stat(p)
-    .then((stats: fs.Stats) => {
-      // const birthTime: Stats.birthtimeMs = stats.birthtime;
-      return new Date(stats.birthtime || stats.mtime);
-    })
-    .catch((err) => {
-      return Promise.reject(err);
-    });
-}
-
-export type FsSafeCopyOpts = Partial<{
+export type SafeCopyOpts = Partial<{
   errorOnNoSource: boolean;
   errorOnExist: boolean;
   move: boolean; // Set to true to move the file rather than copy the file
@@ -206,102 +22,315 @@ export type FsSafeCopyOpts = Partial<{
   test: boolean; // don't actually move or copy the file, just execute the logic around it
 }>;
 
-/**
- * Copy a file or directory.
- * @param srcFile
- * @param destFile
- * @param opts
- * @returns True if file was copied or moved, false otherwise
- */
-export async function fsSafeCopy(
-  srcFile: FilePath,
-  destFile: FilePath,
-  opts: FsSafeCopyOpts = {}
-): Promise<boolean | undefined> {
-  return fsFileExists(srcFile).then((sourceExists) => {
-    let destFileExists: boolean;
-    let destPath: FilePath = destFile;
-    const destDir: FolderPath = path.dirname(destFile);
-    if (sourceExists) {
-      return fsFileExists(destFile)
-        .then((resp) => {
-          destFileExists = resp;
-          if (opts.ensureDir) {
-            return fsEnsureDir(destDir);
-          }
-        })
-        .then(() => {
-          return fsDirExists(destDir);
-        })
-        .then((destDirExists) => {
-          if (destFileExists) {
-            if (opts.backup) {
-              const bakDest: FilePath = destFile + '~';
-              return fsMove(destFile, bakDest, { overwrite: true }).then((resp) => {
-                return Promise.resolve(true);
-              });
-            } else if (opts.index) {
-              let count = 0;
-              const parts = path.parse(destFile);
-              destPath = path.resolve(parts.dir, parts.name + '-' + ++count + parts.ext);
-              while (fs.existsSync(destPath) && count < 10) {
-                destPath = path.resolve(parts.dir, parts.name + '-' + ++count + parts.ext);
-              }
-              if (count >= 10) {
-                if (opts.errorOnExist) {
-                  throw newError('EEXIST', 'File exists: ' + destFile);
-                }
-                return Promise.resolve(false);
-              }
-            } else if (!opts.overwrite) {
-              if (opts.errorOnExist) {
-                throw newError('EEXIST', 'File exists: ' + destFile);
-              } else {
-                return Promise.resolve(false);
-              }
-            }
-            return Promise.resolve(true);
-          } else if (destDirExists) {
-            return Promise.resolve(true);
-          } else {
-            return Promise.resolve(false);
-          }
-        })
-        .then((doIt: boolean) => {
-          if (doIt) {
-            if (opts.move) {
-              if (opts.test) {
-                // console.log(`  Skipped move ${srcFile} to ${destPath}`);
-              } else {
-                return fsMove(srcFile, destPath, { overwrite: true }).then((resp) => {
-                  // console.log(`  Moved ${srcFile} to ${destPath}`);
-                  return Promise.resolve(true);
-                });
-              }
-            } else {
-              if (opts.test) {
-                // console.log(`  Skipped copy ${srcFile} to ${destPath}`);
-              } else {
-                return fsCopy(srcFile, destPath, { overwrite: true }).then((resp) => {
-                  // console.log(`  Copied ${srcFile} to ${destPath}`);
-                  return Promise.resolve(true);
-                });
-              }
-            }
-          }
-          return Promise.resolve(false);
-        });
-    } else {
-      if (opts.errorOnNoSource) {
-        throw newError('ENOENT', 'File does not exist: ' + srcFile);
-      }
-    }
-  });
+export function futil(f: FilePath | FolderPath): FUtil {
+  return new FUtil(f);
 }
 
-export function newError(code: string, message: string): Error {
-  let err: Error = new Error(message);
-  // @ts-ignore
-  err.code = code;
-  return err;
+export class FUtil {
+  private f: FilePath | FolderPath;
+
+  constructor(f: FilePath | FolderPath) {
+    this.f = f;
+  }
+
+  async ensureDir(options?: fx.EnsureDirOptions | number): Promise<unknown> {
+    return fx.ensureDir(this.f, options);
+  }
+
+  ensureDirSync(options?: fx.EnsureDirOptions | number): this {
+    fx.ensureDirSync(this.f, options);
+    return this;
+  }
+
+  async remove(): Promise<void> {
+    return fx.remove(this.f);
+  }
+
+  async copyTo(dest: FilePath, options?: fx.CopyOptions): Promise<void> {
+    return fx.copy(this.f, dest, options);
+  }
+
+  copySync(dest: FilePath, options?: fx.CopyOptionsSync): this {
+    fx.copySync(this.f, dest, options);
+    return this;
+  }
+
+  async moveTo(dest: FilePath, options?: fx.MoveOptions): Promise<void> {
+    return fx.move(this.f, dest, options);
+  }
+
+  /**
+   * Retrieve the list of matching folders in dir.
+   * @param dir
+   * @param regex
+   */
+  async getFolders(regex?: RegExp): Promise<FolderPath[]> {
+    const results: FolderPath[] = [];
+    return fs.promises
+      .readdir(this.f)
+      .then((entries) => {
+        const jobs = [];
+        for (const entry of entries) {
+          const fullPath: FolderPath = path.resolve(this.f, entry);
+          const job = futil(fullPath)
+            .isDir()
+            .then((bIsDir) => {
+              if (bIsDir && (!regex || regex.test(entry))) {
+                results.push(fullPath);
+              }
+            });
+          jobs.push(job);
+        }
+        return Promise.all(jobs);
+      })
+      .then((resp) => {
+        return Promise.resolve(results);
+      });
+  }
+
+  /**
+   * Get the Creation Date of a PDF file by reading it's metadata.
+   * @param file
+   */
+  async getPdfDate(): Promise<Date | undefined> {
+    return fs.promises
+      .readFile(this.f)
+      .then((dataBuffer) => {
+        // @ts-ignore
+        return pdf.default(dataBuffer);
+      })
+      .then((data) => {
+        if (data && data.info && isString(data.info.CreationDate)) {
+          let ds = data.info.CreationDate;
+          ds = ds.replace(/^D:/, '');
+          const d: Date = new Date(
+            parseInt(ds.slice(0, 4), 10),
+            parseInt(ds.slice(4, 6), 10) - 1,
+            parseInt(ds.slice(6, 8), 10)
+          );
+          // console.log(d.toString());
+          return Promise.resolve(d);
+        }
+      });
+  }
+
+  /**
+   * Calculate the checksum of a file
+   * @param file
+   */
+  async checksum() {
+    return new Promise((resolve, reject) => {
+      // @ts-ignore
+      checksum.file(this.f, (err, sum) => {
+        if (err) {
+          reject(err);
+        } else {
+          resolve(sum);
+        }
+      });
+    });
+  }
+
+  /**
+   * Use checksums to test if two files are equal
+   * @param path1
+   * @param path2
+   */
+  async filesEqual(path2: FilePath): Promise<boolean> {
+    return new Promise((resolve, reject) => {
+      const job1 = this.isFile();
+      const job2 = futil(path2).isFile();
+      return Promise.all([job1, job2]).then((resps) => {
+        if (resps && resps.length === 2 && resps[0] === true && resps[1] === true) {
+          const job3 = this.checksum();
+          const job4 = new FUtil(path2).checksum();
+          return Promise.all([job3, job4]).then((resps) => {
+            if (resps && resps.length === 2 && resps[0] === resps[1]) {
+              resolve(true);
+            } else {
+              resolve(false);
+            }
+          });
+        } else {
+          resolve(false);
+        }
+      });
+    });
+  }
+
+  async readJson(): Promise<any> {
+    return new Promise((resolve, reject) => {
+      fs.readFile(this.f, 'utf8', (err, data) => {
+        if (err) {
+          reject(err);
+        } else {
+          try {
+            const json = JSON.parse(data.toString());
+            resolve(json);
+          } catch (error) {
+            reject(error);
+          }
+        }
+      });
+    });
+  }
+
+  async writeJson(data: any): Promise<void> {
+    const buf = Buffer.from(JSON.stringify(data, null, '  '));
+    return fs.promises.writeFile(this.f, buf);
+  }
+
+  async writeBase64(data: string): Promise<void> {
+    const buf = Buffer.from(data, 'base64');
+    return fs.promises.writeFile(this.f, buf);
+  }
+
+  async isDir(): Promise<boolean> {
+    return this.dirExists();
+  }
+
+  async isFile(): Promise<boolean> {
+    return this.fileExists();
+  }
+
+  async exists(): Promise<boolean> {
+    try {
+      const resp: fs.Stats = await fs.promises.stat(this.f);
+      return resp.isDirectory() || resp.isFile();
+    } catch (err) {
+      return Promise.resolve(false);
+    }
+  }
+
+  async dirExists(): Promise<boolean> {
+    try {
+      const resp: fs.Stats = await fs.promises.stat(this.f);
+      return resp.isDirectory();
+    } catch (err) {
+      return Promise.resolve(false);
+    }
+  }
+
+  async fileExists(): Promise<boolean> {
+    return fs.promises
+      .stat(this.f)
+      .then((resp: fs.Stats) => {
+        return resp.isFile();
+      })
+      .catch((err) => {
+        return Promise.resolve(false);
+      });
+  }
+
+  async createdAt(p: FilePath): Promise<Date> {
+    return fs.promises
+      .stat(this.f)
+      .then((stats: fs.Stats) => {
+        // const birthTime: Stats.birthtimeMs = stats.birthtime;
+        return new Date(stats.birthtime || stats.mtime);
+      })
+      .catch((err) => {
+        return Promise.reject(err);
+      });
+  }
+
+  /**
+   * Copy a file or directory.
+   * @param srcFile
+   * @param destFile
+   * @param opts
+   * @returns True if file was copied or moved, false otherwise
+   */
+  async safeCopy(destFile: FilePath, opts: SafeCopyOpts = {}): Promise<boolean | undefined> {
+    return Promise.reject(new Error('The safeCopy function has not yet been implemented'));
+    return this.fileExists().then((sourceExists) => {
+      let destFileExists: boolean;
+      let destPath: FilePath = destFile;
+      const destDir: FolderPath = path.dirname(destFile);
+      if (sourceExists) {
+        return futil(destFile)
+          .fileExists()
+          .then((resp) => {
+            destFileExists = resp;
+            if (opts.ensureDir) {
+              return futil(destDir).ensureDir();
+            }
+          })
+          .then(() => {
+            return futil(destDir).dirExists();
+          })
+          .then((destDirExists) => {
+            if (destFileExists) {
+              if (opts.backup) {
+                const bakDest: FilePath = destFile + '~';
+                return futil(destFile)
+                  .moveTo(bakDest, { overwrite: true })
+                  .then((resp) => {
+                    return Promise.resolve(true);
+                  });
+              } else if (opts.index) {
+                let count = 0;
+                const parts = path.parse(destFile);
+                destPath = path.resolve(parts.dir, parts.name + '-' + ++count + parts.ext);
+                while (fs.existsSync(destPath) && count < 10) {
+                  destPath = path.resolve(parts.dir, parts.name + '-' + ++count + parts.ext);
+                }
+                if (count >= 10) {
+                  if (opts.errorOnExist) {
+                    throw this.newError('EEXIST', 'File exists');
+                  }
+                  return Promise.resolve(false);
+                }
+              } else if (!opts.overwrite) {
+                if (opts.errorOnExist) {
+                  throw this.newError('EEXIST', 'File exists');
+                } else {
+                  return Promise.resolve(false);
+                }
+              }
+              return Promise.resolve(true);
+            } else if (destDirExists) {
+              return Promise.resolve(true);
+            } else {
+              return Promise.resolve(false);
+            }
+          })
+          .then((doIt: boolean) => {
+            if (doIt) {
+              if (opts.move) {
+                if (opts.test) {
+                  // console.log(`  Skipped move ${srcFile} to ${destPath}`);
+                } else {
+                  return this.moveTo(destPath, { overwrite: true }).then((resp) => {
+                    // console.log(`  Moved ${srcFile} to ${destPath}`);
+                    return Promise.resolve(true);
+                  });
+                }
+              } else {
+                if (opts.test) {
+                  // console.log(`  Skipped copy ${srcFile} to ${destPath}`);
+                } else {
+                  return this.copyTo(destPath, { overwrite: true }).then((resp) => {
+                    // console.log(`  Copied ${srcFile} to ${destPath}`);
+                    return Promise.resolve(true);
+                  });
+                }
+              }
+            }
+            return Promise.resolve(false);
+          });
+      } else {
+        if (opts.errorOnNoSource) {
+          throw this.newError('ENOENT', 'File does not exist');
+        }
+      }
+    });
+  }
+
+  newError(code: string, message: string): Error {
+    let err: Error = new Error(`${message}: ${this.f}`);
+    // @ts-ignore
+    err.code = code;
+    return err;
+  }
 }
