@@ -1,6 +1,6 @@
 {
-  "name": "fsutil",
-  "version": "0.2.0",
+  "name": "@epdoc/fsutil",
+  "version": "0.3.0",
   "description": "File system related utilities",
   "keywords": [
     "fs",
@@ -10,7 +10,7 @@
   "license": "MIT",
   "author": {
     "name": "James Pravetz",
-    "email": "jpravetz@epdoc.com"
+    "email": "jpravetz@gmail.com"
   },
   "repository": {
     "type": "git",
@@ -23,7 +23,8 @@
     "clean": "rm -rf dist docs coverage && echo 'Done.'",
     "coverage": "bun test --coverage",
     "format": "prettier --write 'src/**/*.ts'",
-    "docs": "./node_modules/typedoc/bin/typedoc"
+    "docs": "./node_modules/typedoc/bin/typedoc",
+    "publish": "npm publish --access public"
   },
   "peerDependencies": {
     "typescript": "^5.0.0"
