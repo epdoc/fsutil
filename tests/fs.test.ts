@@ -1,25 +1,25 @@
 import { isArray } from 'epdoc-util';
-import { SafeCopyOpts, futil } from './../src/index';
+import { SafeCopyOpts, fsutil } from './../src/index';
 
 describe('fsutil', () => {
   beforeEach(async () => {
-    await futil('./tests/data').copyTo('./tests/data1');
-    await futil('./tests/data2').remove();
-    await futil('./tests/data3').remove();
+    await fsutil('./tests/data').copyTo('./tests/data1');
+    await fsutil('./tests/data2').remove();
+    await fsutil('./tests/data3').remove();
   });
 
-  // afterAll(async () => {
-  //   await futil('./tests/data1');
-  //   await futil('./tests/data2');
-  //   await futil('./tests/data3');
-  // });
+  afterAll(async () => {
+    await fsutil('./tests/data1');
+    await fsutil('./tests/data2');
+    await fsutil('./tests/data3');
+  });
 
   test('fsGetFolders', () => {
-    return futil('.')
+    return fsutil('.')
       .getFolders()
       .then((resp) => {
         expect(isArray(resp)).toBe(true);
-        return futil('./tests').getFolders();
+        return fsutil('./tests').getFolders();
       })
       .then((resp) => {
         expect(isArray(resp)).toBe(true);
@@ -33,11 +33,11 @@ describe('fsutil', () => {
   test('isDir', () => {
     return Promise.resolve()
       .then((resp) => {
-        return futil('./tests').isDir();
+        return fsutil('./tests').isDir();
       })
       .then((resp) => {
         expect(resp).toBe(true);
-        return futil('./tests/data1').isDir();
+        return fsutil('./tests/data1').isDir();
       })
       .then((resp) => {
         expect(resp).toBe(true);
@@ -46,11 +46,11 @@ describe('fsutil', () => {
   test('fsExists', () => {
     return Promise.resolve()
       .then((resp) => {
-        return futil('./tests').exists();
+        return fsutil('./tests').exists();
       })
       .then((resp) => {
         expect(resp).toBe(true);
-        return futil('./tests/data1').exists();
+        return fsutil('./tests/data1').exists();
       })
       .then((resp) => {
         expect(resp).toBe(true);
@@ -59,11 +59,11 @@ describe('fsutil', () => {
   test('fs dirExists', () => {
     return Promise.resolve()
       .then((resp) => {
-        return futil('./tests').dirExists();
+        return fsutil('./tests').dirExists();
       })
       .then((resp) => {
         expect(resp).toBe(true);
-        return futil('./tests/data1').dirExists();
+        return fsutil('./tests/data1').dirExists();
       })
       .then((resp) => {
         expect(resp).toBe(true);
@@ -72,15 +72,15 @@ describe('fsutil', () => {
   test('fs fileExists', () => {
     return Promise.resolve()
       .then((resp) => {
-        return futil('./tests').fileExists();
+        return fsutil('./tests').fileExists();
       })
       .then((resp) => {
         expect(resp).toBe(false);
-        return futil('./tests/data1').fileExists();
+        return fsutil('./tests/data1').fileExists();
       })
       .then((resp) => {
         expect(resp).toBe(false);
-        return futil('./tests/data1/sample.txt').fileExists();
+        return fsutil('./tests/data1/sample.txt').fileExists();
       })
       .then((resp) => {
         expect(resp).toBe(true);
@@ -89,7 +89,7 @@ describe('fsutil', () => {
   it('checksum', () => {
     return Promise.resolve()
       .then((resp) => {
-        return futil('./tests/data1/sample.txt').checksum();
+        return fsutil('./tests/data1/sample.txt').checksum();
       })
       .then((resp) => {
         expect(resp).toBe('cacc6f06ae07f842663cb1b1722cafbee9b4d203');
@@ -98,83 +98,83 @@ describe('fsutil', () => {
   test('fsEqual', () => {
     return Promise.resolve()
       .then((resp) => {
-        return futil('./tests/fs.test.ts').filesEqual('./tests/fs.test.ts');
+        return fsutil('./tests/fs.test.ts').filesEqual('./tests/fs.test.ts');
       })
       .then((resp) => {
         expect(resp).toBe(true);
-        return futil('./tests/fs.test.ts').filesEqual('./tests/data1/sample.txt');
+        return fsutil('./tests/fs.test.ts').filesEqual('./tests/data1/sample.txt');
       })
       .then((resp) => {
         expect(resp).toBe(false);
-        return futil('./tests/data1/sample.txt').filesEqual('./tests');
-      })
-      .then((resp) => {
-        expect(resp).toBe(false);
-      });
-  });
-  test('fsEnsureDir futil.Remove', () => {
-    return Promise.resolve()
-      .then((resp) => {
-        return futil('./tests').ensureDir();
-      })
-      .then((resp) => {
-        return futil('./tests/data1/tmp1').ensureDir();
-      })
-      .then((resp) => {
-        return futil('./tests/data1/tmp1').isDir();
-      })
-      .then((resp) => {
-        expect(resp).toBe(true);
-        return futil('./tests/data1/tmp1').remove();
-      })
-      .then((resp) => {
-        expect(resp).toBeUndefined();
-        return futil('./tests/data1/tmp1').isDir();
+        return fsutil('./tests/data1/sample.txt').filesEqual('./tests');
       })
       .then((resp) => {
         expect(resp).toBe(false);
       });
   });
-  test('fsCopy futil.Move', () => {
+  test('fsEnsureDir fsutil.Remove', () => {
     return Promise.resolve()
       .then((resp) => {
-        return futil('./tests/data1').copyTo('./tests/data2', { preserveTimestamps: true });
+        return fsutil('./tests').ensureDir();
       })
       .then((resp) => {
-        expect(resp).toBeUndefined();
-        return futil('./tests/data2').isDir();
+        return fsutil('./tests/data1/tmp1').ensureDir();
       })
       .then((resp) => {
-        expect(resp).toEqual(true);
-        return futil('./tests/data2/folder-sample').isDir();
-      })
-      .then((resp) => {
-        expect(resp).toEqual(true);
-        return futil('./tests/data2/folder-sample/sample2.txt').isFile();
-      })
-      .then((resp) => {
-        expect(resp).toEqual(true);
-        return futil('./tests/data2/folder-sample/sample2.txt').filesEqual('./tests/data1/folder-sample/sample2.txt');
+        return fsutil('./tests/data1/tmp1').isDir();
       })
       .then((resp) => {
         expect(resp).toBe(true);
-        return futil('./tests/data2').moveTo('./tests/data3');
+        return fsutil('./tests/data1/tmp1').remove();
       })
       .then((resp) => {
         expect(resp).toBeUndefined();
-        return futil('./tests/data2').isDir();
+        return fsutil('./tests/data1/tmp1').isDir();
+      })
+      .then((resp) => {
+        expect(resp).toBe(false);
+      });
+  });
+  test('fsCopy fsutil.Move', () => {
+    return Promise.resolve()
+      .then((resp) => {
+        return fsutil('./tests/data1').copyTo('./tests/data2', { preserveTimestamps: true });
+      })
+      .then((resp) => {
+        expect(resp).toBeUndefined();
+        return fsutil('./tests/data2').isDir();
+      })
+      .then((resp) => {
+        expect(resp).toEqual(true);
+        return fsutil('./tests/data2/folder-sample').isDir();
+      })
+      .then((resp) => {
+        expect(resp).toEqual(true);
+        return fsutil('./tests/data2/folder-sample/sample2.txt').isFile();
+      })
+      .then((resp) => {
+        expect(resp).toEqual(true);
+        return fsutil('./tests/data2/folder-sample/sample2.txt').filesEqual('./tests/data1/folder-sample/sample2.txt');
+      })
+      .then((resp) => {
+        expect(resp).toBe(true);
+        return fsutil('./tests/data2').moveTo('./tests/data3');
+      })
+      .then((resp) => {
+        expect(resp).toBeUndefined();
+        return fsutil('./tests/data2').isDir();
       })
       .then((resp) => {
         expect(resp).toEqual(false);
-        return futil('./tests/data3').isDir();
+        return fsutil('./tests/data3').isDir();
       })
       .then((resp) => {
         expect(resp).toEqual(true);
-        return futil('./tests/data3').remove();
+        return fsutil('./tests/data3').remove();
       })
       .then((resp) => {
         expect(resp).toBeUndefined();
-        return futil('./tests/data3').isDir();
+        return fsutil('./tests/data3').isDir();
       })
       .then((resp) => {
         expect(resp).toBe(false);
@@ -187,56 +187,56 @@ describe('fsutil', () => {
         const opts: SafeCopyOpts = {
           ensureDir: true
         };
-        return futil('./tests/data1').safeCopy('./tests/data2', opts);
+        return fsutil('./tests/data1').safeCopy('./tests/data2', opts);
       })
       .then((resp) => {
         expect(resp).toBeUndefined();
-        return futil('./tests/data2').isDir();
+        return fsutil('./tests/data2').isDir();
       })
       .then((resp) => {
         expect(resp).toEqual(true);
-        return futil('./tests/data2/folder-sample').isDir();
+        return fsutil('./tests/data2/folder-sample').isDir();
       })
       .then((resp) => {
         expect(resp).toEqual(true);
-        return futil('./tests/data2/folder-sample/sample2.txt').isFile();
+        return fsutil('./tests/data2/folder-sample/sample2.txt').isFile();
       })
       .then((resp) => {
         expect(resp).toEqual(true);
-        return futil('./tests/data2/folder-sample/sample2.txt').filesEqual('./tests/data1/folder-sample/sample2.txt');
+        return fsutil('./tests/data2/folder-sample/sample2.txt').filesEqual('./tests/data1/folder-sample/sample2.txt');
       })
       .then((resp) => {
         expect(resp).toBe(true);
-        return futil('./tests/data2').moveTo('./tests/data3');
+        return fsutil('./tests/data2').moveTo('./tests/data3');
       })
       .then((resp) => {
         expect(resp).toBeUndefined();
-        return futil('./tests/data2').isDir();
+        return fsutil('./tests/data2').isDir();
       })
       .then((resp) => {
         expect(resp).toEqual(false);
-        return futil('./tests/data3').isDir();
+        return fsutil('./tests/data3').isDir();
       })
       .then((resp) => {
         expect(resp).toEqual(true);
-        return futil('./tests/data3').remove();
+        return fsutil('./tests/data3').remove();
       })
       .then((resp) => {
         expect(resp).toBeUndefined();
-        return futil('./tests/data3').isDir();
+        return fsutil('./tests/data3').isDir();
       })
       .then((resp) => {
         expect(resp).toBe(false);
       });
   });
 
-  test.skip('json', async () => {
+  test('json', async () => {
     const SRC = './tests/data1/folder-sample/sample.json';
     const DEST = './tests/data1/folder-sample/sample-copy.json';
-    const json = await futil(SRC).readJson();
-    await futil(DEST).writeJson(json);
-    expect(await futil(DEST).isFile()).toEqual(true);
-    const json2 = await futil(DEST).readJson();
+    const json = await fsutil(SRC).readJson();
+    await fsutil(DEST).writeJson(json);
+    expect(await fsutil(DEST).isFile()).toEqual(true);
+    const json2 = await fsutil(DEST).readJson();
     expect(json2).toEqual(json);
   });
 });

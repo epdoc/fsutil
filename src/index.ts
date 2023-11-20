@@ -22,11 +22,11 @@ export type SafeCopyOpts = Partial<{
   test: boolean; // don't actually move or copy the file, just execute the logic around it
 }>;
 
-export function futil(f: FilePath | FolderPath): FUtil {
-  return new FUtil(f);
+export function fsutil(f: FilePath | FolderPath): FSUtil {
+  return new FSUtil(f);
 }
 
-export class FUtil {
+export class FSUtil {
   private f: FilePath | FolderPath;
 
   constructor(f: FilePath | FolderPath) {
@@ -72,7 +72,7 @@ export class FUtil {
         const jobs = [];
         for (const entry of entries) {
           const fullPath: FolderPath = path.resolve(this.f, entry);
-          const job = futil(fullPath)
+          const job = fsutil(fullPath)
             .isDir()
             .then((bIsDir) => {
               if (bIsDir && (!regex || regex.test(entry))) {
@@ -139,11 +139,11 @@ export class FUtil {
   async filesEqual(path2: FilePath): Promise<boolean> {
     return new Promise((resolve, reject) => {
       const job1 = this.isFile();
-      const job2 = futil(path2).isFile();
+      const job2 = fsutil(path2).isFile();
       return Promise.all([job1, job2]).then((resps) => {
         if (resps && resps.length === 2 && resps[0] === true && resps[1] === true) {
           const job3 = this.checksum();
-          const job4 = new FUtil(path2).checksum();
+          const job4 = new FSUtil(path2).checksum();
           return Promise.all([job3, job4]).then((resps) => {
             if (resps && resps.length === 2 && resps[0] === resps[1]) {
               resolve(true);
@@ -248,22 +248,22 @@ export class FUtil {
       let destPath: FilePath = destFile;
       const destDir: FolderPath = path.dirname(destFile);
       if (sourceExists) {
-        return futil(destFile)
+        return fsutil(destFile)
           .fileExists()
           .then((resp) => {
             destFileExists = resp;
             if (opts.ensureDir) {
-              return futil(destDir).ensureDir();
+              return fsutil(destDir).ensureDir();
             }
           })
           .then(() => {
-            return futil(destDir).dirExists();
+            return fsutil(destDir).dirExists();
           })
           .then((destDirExists) => {
             if (destFileExists) {
               if (opts.backup) {
                 const bakDest: FilePath = destFile + '~';
-                return futil(destFile)
+                return fsutil(destFile)
                   .moveTo(bakDest, { overwrite: true })
                   .then((resp) => {
                     return Promise.resolve(true);
