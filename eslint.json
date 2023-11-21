@@ -1,0 +1,15 @@
+{
+  "extends": ["eslint:recommended", "eslint-config-prettier", "eslint-plugin-prettier"],
+  "linterOptions": {
+    "exclude": ["test/**/*.js"]
+  },
+  "rules": {
+    "prettier": true,
+    "quotemark": [true, "single"],
+    "ordered-imports": false,
+    "object-literal-sort-keys": false,
+    "variable-name": {
+      "options": ["allow-leading-underscore"]
+    }
+  }
+}
