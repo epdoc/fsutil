@@ -1,5 +1,5 @@
 import { isArray } from 'epdoc-util';
-import { SafeCopyOpts, fsutil } from './../src/index';
+import { FSUtil, SafeCopyOpts, fsutil } from './../src/index';
 
 describe('fsutil', () => {
   beforeEach(async () => {
@@ -238,5 +238,19 @@ describe('fsutil', () => {
     expect(await fsutil(DEST).isFile()).toEqual(true);
     const json2 = await fsutil(DEST).readJson();
     expect(json2).toEqual(json);
+  });
+
+  test('readAsString', async () => {
+    const SRC = './tests/data/sample.txt';
+    const result = 'This is sample.txt. \nDo not edit or move this file.\n';
+    const str = await fsutil(SRC).readAsString();
+    console.log(str);
+    expect(str).toEqual(result);
+  });
+  test('path resolve', async () => {
+    const SRC = './tests/data/sample.json';
+    const result = 'This is sample.txt.\\nDo not edit or move this file.';
+    const fsutil = new FSUtil('/', 'the', 'path', 'goes', 'here.txt');
+    expect(fsutil.path).toEqual('/the/path/goes/here.txt');
   });
 });

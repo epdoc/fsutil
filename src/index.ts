@@ -22,15 +22,23 @@ export type SafeCopyOpts = Partial<{
   test: boolean; // don't actually move or copy the file, just execute the logic around it
 }>;
 
-export function fsutil(f: FilePath | FolderPath): FSUtil {
-  return new FSUtil(f);
+export function fsutil(...args: FilePath[] | FolderPath[]): FSUtil {
+  return new FSUtil(...args);
 }
 
 export class FSUtil {
   private f: FilePath | FolderPath;
 
-  constructor(f: FilePath | FolderPath) {
-    this.f = f;
+  constructor(...args: FilePath[] | FolderPath[]) {
+    if (args.length === 1) {
+      this.f = args[0];
+    } else {
+      this.f = path.resolve(...args);
+    }
+  }
+
+  get path(): FilePath {
+    return this.f;
   }
 
   async ensureDir(options?: fx.EnsureDirOptions | number): Promise<unknown> {
@@ -153,6 +161,18 @@ export class FSUtil {
           });
         } else {
           resolve(false);
+        }
+      });
+    });
+  }
+
+  async readAsString(): Promise<any> {
+    return new Promise((resolve, reject) => {
+      fs.readFile(this.f, 'utf8', (err, data) => {
+        if (err) {
+          reject(err);
+        } else {
+          resolve(data.toString());
         }
       });
     });
