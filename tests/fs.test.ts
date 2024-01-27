@@ -9,9 +9,9 @@ describe('fsutil', () => {
   });
 
   afterAll(async () => {
-    await fsutil('./tests/data1');
-    await fsutil('./tests/data2');
-    await fsutil('./tests/data3');
+    await fsutil('./tests/data1').remove();
+    await fsutil('./tests/data2').remove();
+    await fsutil('./tests/data3').remove();
   });
 
   test('fsGetFolders', () => {
@@ -240,6 +240,15 @@ describe('fsutil', () => {
     expect(json2).toEqual(json);
   });
 
+  test.only('deep json', async () => {
+    const opts = { pre: '{{', post: '}}', includeUrl: true };
+    const SRC = './tests/data1/folder-sample/sample-nested.json';
+    const SRC2 = './tests/data1/folder-sample/sample-compare.json';
+    const json2 = await fsutil(SRC2).readJson();
+    const json = await fsutil(SRC).deepReadJson(opts);
+    expect(json2).toEqual(json);
+  });
+
   test('readAsString', async () => {
     const SRC = './tests/data/sample.txt';
     const result = 'This is sample.txt. \nDo not edit or move this file.\n';
@@ -250,7 +259,10 @@ describe('fsutil', () => {
   test('path resolve', async () => {
     const SRC = './tests/data/sample.json';
     const result = 'This is sample.txt.\\nDo not edit or move this file.';
-    const fsutil = new FSUtil('/', 'the', 'path', 'goes', 'here.txt');
-    expect(fsutil.path).toEqual('/the/path/goes/here.txt');
+    const fsutil = new FSUtil('/', 'the', 'path', 'goes', 'right.here.txt');
+    expect(fsutil.path).toEqual('/the/path/goes/right.here.txt');
+    expect(fsutil.dirname).toEqual('/the/path/goes');
+    expect(fsutil.extname).toEqual('.txt');
+    expect(fsutil.basename).toEqual('right.here');
   });
 });

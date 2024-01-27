@@ -1,6 +1,16 @@
 // import * as checksum from 'checksum';
+import {
+  DeepCopyOpts,
+  Dict,
+  deepCopy,
+  deepCopySetDefaultOpts,
+  isArray,
+  isNonEmptyArray,
+  isNonEmptyString,
+  isObject,
+  isString
+} from '@epdoc/typeutil';
 import checksum from 'checksum';
-import { isString } from 'epdoc-util';
 import fs from 'fs';
 import * as fx from 'fs-extra';
 import path from 'path';
@@ -10,6 +20,19 @@ export type FilePath = string;
 export type FolderPath = string;
 export type FileName = string;
 export type FileExt = string; // includes '.'
+
+export function isFilename(val: any): val is FileName {
+  return isNonEmptyString(val);
+}
+export function isFolderPath(val: any): val is FolderPath {
+  return isNonEmptyString(val);
+}
+export function isFilePath(val: any): val is FilePath {
+  return isNonEmptyString(val);
+}
+export type FsDeepCopyOpts = DeepCopyOpts & {
+  includeUrl?: any;
+};
 
 export type SafeCopyOpts = Partial<{
   errorOnNoSource: boolean;
@@ -27,18 +50,45 @@ export function fsutil(...args: FilePath[] | FolderPath[]): FSUtil {
 }
 
 export class FSUtil {
+  // @ts-ignore
   private f: FilePath | FolderPath;
 
   constructor(...args: FilePath[] | FolderPath[]) {
     if (args.length === 1) {
-      this.f = args[0];
-    } else {
+      if (isArray(args[0])) {
+        this.f = path.resolve(args[0]);
+      } else {
+        this.f = args[0];
+      }
+    } else if (args.length > 1) {
       this.f = path.resolve(...args);
     }
   }
 
   get path(): FilePath {
     return this.f;
+  }
+
+  /**
+   * Returns 'file.name' portion of /path/to/file.name.html'. Unlike
+   * path.basename, this does NOT include the extension.
+   */
+  get basename(): string {
+    return path.basename(this.f).replace(/\.[^\.]*$/, '');
+  }
+
+  /**
+   * Returns '/path/to' portion of /path/to/file.name.html'
+   */
+  get dirname(): string {
+    return path.dirname(this.f);
+  }
+
+  /**
+   * Returns 'html' portion of /path/to/file.name.html'
+   */
+  get extname(): string {
+    return path.extname(this.f);
   }
 
   async ensureDir(options?: fx.EnsureDirOptions | number): Promise<unknown> {
@@ -193,6 +243,48 @@ export class FSUtil {
         }
       });
     });
+  }
+
+  async deepReadJson(opts: FsDeepCopyOpts = {}): Promise<any> {
+    return this.readJson().then((resp) => {
+      return this.deepCopy(resp, opts);
+    });
+  }
+
+  private async deepCopy(a: any, options?: FsDeepCopyOpts): Promise<any> {
+    let opts: FsDeepCopyOpts = deepCopySetDefaultOpts(options);
+    const urlTest = new RegExp(`^${opts.pre}(file|http|https):\/\/(.+)${opts.post}$`, 'i');
+    if (opts.includeUrl && isNonEmptyString(a) && urlTest.test(a)) {
+      const p = a.match(urlTest);
+      if (isNonEmptyArray(p) && isFilePath(p[2])) {
+        const fs = new FSUtil(this.dirname, p[2]);
+        return fs.deepReadJson(opts).then((resp) => {
+          return Promise.resolve(resp);
+        });
+      } else {
+        return Promise.resolve(a);
+      }
+    } else if (isObject(a)) {
+      // @ts-ignore
+      const re: RegExp = opts && opts.detectRegExp ? asRegExp(a) : undefined;
+      if (re) {
+        return Promise.resolve(re);
+      } else {
+        const jobs: any[] = [];
+        const result2: Dict = {};
+        Object.keys(a).forEach((key) => {
+          let job = this.deepCopy(a[key], opts).then((resp) => {
+            result2[key] = resp;
+          });
+          jobs.push(job);
+        });
+        return Promise.all(jobs).then((resp) => {
+          return Promise.resolve(result2);
+        });
+      }
+    } else {
+      return Promise.resolve(deepCopy(a, opts));
+    }
   }
 
   async writeJson(data: any): Promise<void> {

@@ -1,0 +1,11 @@
+{
+  "description": "this is a nested sample file",
+  "array2": [1, "2", 3],
+  "dict2": {
+    "item5": "is here",
+    "item2": {
+      "item3": "this is item3 dict",
+      "item4": "{{file://./sample.json}}"
+    }
+  }
+}
