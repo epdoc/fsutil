@@ -30,6 +30,21 @@ describe('fsutil', () => {
         expect(resp[1]).toMatch(/tests\/data1$/);
       });
   });
+  test('fsGetFiles', () => {
+    return fsutil('.')
+      .getFolders()
+      .then((resp) => {
+        expect(isArray(resp)).toBe(true);
+        return fsutil('./tests').getFiles();
+      })
+      .then((resp) => {
+        expect(isArray(resp)).toBe(true);
+        expect(resp.length).toBe(1);
+        console.log(JSON.stringify(resp));
+        resp = resp.sort();
+        expect(resp[0]).toMatch(/fs\.test\.ts$/);
+      });
+  });
   test('isDir', () => {
     return Promise.resolve()
       .then((resp) => {
@@ -240,7 +255,7 @@ describe('fsutil', () => {
     expect(json2).toEqual(json);
   });
 
-  test.only('deep json', async () => {
+  test('deep json', async () => {
     const opts = { pre: '{{', post: '}}', includeUrl: true };
     const SRC = './tests/data1/folder-sample/sample-nested.json';
     const SRC2 = './tests/data1/folder-sample/sample-compare.json';
@@ -264,5 +279,11 @@ describe('fsutil', () => {
     expect(fsutil.dirname).toEqual('/the/path/goes');
     expect(fsutil.extname).toEqual('.txt');
     expect(fsutil.basename).toEqual('right.here');
+    expect(fsutil.isType('txt')).toEqual(true);
+    expect(fsutil.isTxt()).toEqual(true);
+    expect(fsutil.isJson()).toEqual(false);
+    expect(fsutil.isType('json', 'txt')).toEqual(true);
+    expect(fsutil.isType('json', 'pdf')).toEqual(false);
+    expect(fsutil.isType('txt', 'pdf')).toEqual(true);
   });
 });

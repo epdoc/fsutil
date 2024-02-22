@@ -8,6 +8,7 @@ import {
   isNonEmptyArray,
   isNonEmptyString,
   isObject,
+  isRegExp,
   isString
 } from '@epdoc/typeutil';
 import checksum from 'checksum';
@@ -15,6 +16,13 @@ import fs from 'fs';
 import * as fx from 'fs-extra';
 import path from 'path';
 import * as pdf from 'pdf-parse';
+
+const REG = {
+  pdf: /\.pdf$/i,
+  xml: /\.xml$/i,
+  json: /\.json$i/,
+  txt: /\.txt$/i
+};
 
 export type FilePath = string;
 export type FolderPath = string;
@@ -91,6 +99,36 @@ export class FSUtil {
     return path.extname(this.f);
   }
 
+  isType(...type: (RegExp | string)[]): boolean {
+    const lowerCaseExt = this.extname.toLowerCase().replace(/^\./, '');
+    for (const entry of type) {
+      if (isRegExp(entry)) {
+        if (entry.test(lowerCaseExt)) {
+          return true;
+        }
+      } else if (isString(entry)) {
+        if (entry.toLowerCase() === lowerCaseExt) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  isPdf(): boolean {
+    return REG.pdf.test(this.extname);
+  }
+
+  isXml(): boolean {
+    return REG.xml.test(this.extname);
+  }
+  isTxt(): boolean {
+    return REG.txt.test(this.extname);
+  }
+  isJson(): boolean {
+    return REG.json.test(this.extname);
+  }
+
   async ensureDir(options?: fx.EnsureDirOptions | number): Promise<unknown> {
     return fx.ensureDir(this.f, options);
   }
@@ -118,9 +156,36 @@ export class FSUtil {
   }
 
   /**
+   * Retrieve the list of matching files in dir.
+   * @param regex (optional) Use to constrain results
+   */
+  async getFiles(regex?: RegExp): Promise<FolderPath[]> {
+    const results: FolderPath[] = [];
+    return fs.promises
+      .readdir(this.f)
+      .then((entries) => {
+        const jobs = [];
+        for (const entry of entries) {
+          const fullPath: FolderPath = path.resolve(this.f, entry);
+          const job = fsutil(fullPath)
+            .isFile()
+            .then((bIsFile) => {
+              if (bIsFile && (!regex || regex.test(entry))) {
+                results.push(fullPath);
+              }
+            });
+          jobs.push(job);
+        }
+        return Promise.all(jobs);
+      })
+      .then((resp) => {
+        return Promise.resolve(results);
+      });
+  }
+
+  /**
    * Retrieve the list of matching folders in dir.
-   * @param dir
-   * @param regex
+   * @param regex (optional) Use to constrain results
    */
   async getFolders(regex?: RegExp): Promise<FolderPath[]> {
     const results: FolderPath[] = [];
