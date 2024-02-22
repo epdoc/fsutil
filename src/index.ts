@@ -129,6 +129,10 @@ export class FSUtil {
     return REG.json.test(this.extname);
   }
 
+  isNamed(name: string): boolean {
+    return name === this.basename;
+  }
+
   async ensureDir(options?: fx.EnsureDirOptions | number): Promise<unknown> {
     return fx.ensureDir(this.f, options);
   }
