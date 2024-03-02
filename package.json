@@ -1,6 +1,6 @@
 {
   "name": "@epdoc/fsutil",
-  "version": "0.3.9",
+  "version": "0.3.10",
   "description": "File system related utilities",
   "keywords": [
     "fs",
@@ -24,7 +24,7 @@
     "format": "prettier --write 'src/**/*.ts'",
     "docs": "./node_modules/typedoc/bin/typedoc",
     "prepare": "npm run build",
-    "publish": "npm publish --access public"
+    "publish": "npm publish --access public && echo 'Done.'"
   },
   "dependencies": {
     "@epdoc/typeutil": "^1.0.8",
