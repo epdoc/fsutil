@@ -45,6 +45,13 @@ describe('fsutil', () => {
         expect(resp[0]).toMatch(/fs\.test\.ts$/);
       });
   });
+  test('setExt', () => {
+    const PATH = './mypath/to/file/sample.json';
+    const EXPECTED = './mypath/to/file/sample.rsc';
+    const fs = fsutil(PATH);
+    expect(fs.setExt('txt').extname).toEqual('.txt');
+    expect(fs.setExt('rsc').path).toEqual(EXPECTED);
+  });
   test('isDir', () => {
     return Promise.resolve()
       .then((resp) => {

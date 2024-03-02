@@ -129,6 +129,14 @@ export class FSUtil {
     return REG.json.test(this.extname);
   }
 
+  setExt(ext: string): this {
+    const e = this.extname;
+    if (ext !== e) {
+      this.f = path.format({ ...path.parse(this.f), base: '', ext: '.' + ext });
+    }
+    return this;
+  }
+
   isNamed(name: string): boolean {
     return name === this.basename;
   }
