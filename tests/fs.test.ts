@@ -1,5 +1,6 @@
+import { isDate, isValidDate } from '@epdoc/typeutil';
 import { isArray } from 'epdoc-util';
-import { FSUtil, SafeCopyOpts, fsutil } from './../src/index';
+import { FSUtil, SafeCopyOpts, fsutil, isFilePath, isFilename, isFolderPath } from './../src/index';
 
 describe('fsutil', () => {
   beforeEach(async () => {
@@ -26,8 +27,8 @@ describe('fsutil', () => {
         expect(resp.length).toBe(2);
         console.log(JSON.stringify(resp));
         resp = resp.sort();
-        expect(resp[0]).toMatch(/tests\/data$/);
-        expect(resp[1]).toMatch(/tests\/data1$/);
+        expect(resp[0]).toMatch(/data$/);
+        expect(resp[1]).toMatch(/data1$/);
       });
   });
   test('fsGetFiles', () => {
@@ -108,6 +109,71 @@ describe('fsutil', () => {
         expect(resp).toBe(true);
       });
   });
+  test('constructor with .folder', () => {
+    return Promise.resolve()
+      .then((resp) => {
+        return fsutil('./tests').dirExists();
+      })
+      .then((resp) => {
+        expect(resp).toBe(true);
+        return fsutil('./tests/data/.withdot').dirExists();
+      })
+      .then((resp) => {
+        expect(resp).toBe(true);
+        return fsutil('./tests/data/.withdot/dotsample.json').fileExists();
+      })
+      .then((resp) => {
+        expect(resp).toBe(true);
+      });
+  });
+  it('constructor', () => {
+    expect(fsutil('home', 'file.json').basename).toBe('file');
+    expect(fsutil('/home', 'file.json').path).toBe('/home/file.json');
+  }, 1000);
+  it('guards', () => {
+    expect(isFilename('hello')).toBe(true);
+    expect(isFilePath('hello')).toBe(true);
+    expect(isFilePath('~/xx/hello')).toBe(true);
+    expect(isFolderPath('~/xx/hello')).toBe(true);
+  }, 1000);
+  it('isType', () => {
+    expect(fsutil('file.json').isType('json')).toBe(true);
+    expect(fsutil('file.json').isType('jsson')).toBe(false);
+    expect(fsutil('file.JSON').isType('jsson', 'json')).toBe(true);
+    expect(fsutil('file.txt').isType('jsson', 'JSON')).toBe(false);
+    expect(fsutil('file.json').isType('jsson', 'JSON')).toBe(true);
+    expect(fsutil('file.json').isType(/^json$/)).toBe(true);
+    expect(fsutil('file.json').isType(/^JSON$/)).toBe(false);
+    expect(fsutil('file.json').isType(/^JSON$/i)).toBe(true);
+    expect(fsutil('file.json').isJson()).toBe(true);
+    expect(fsutil('file.JSON').isJson()).toBe(true);
+    expect(fsutil('file.JSON').isPdf()).toBe(false);
+    expect(fsutil('file.JSON').isTxt()).toBe(false);
+    expect(fsutil('file.JSON').isXml()).toBe(false);
+    expect(fsutil('file.PDF').isPdf()).toBe(true);
+    expect(fsutil('file.pdf').isPdf()).toBe(true);
+    expect(fsutil('file.xml').isXml()).toBe(true);
+    expect(fsutil('file.TXT').isTxt()).toBe(true);
+    expect(fsutil('file.TXT').isNamed('file')).toBe(true);
+    expect(fsutil('file.TXT').isNamed('TXT')).toBe(false);
+  }, 1000);
+  it('getPdfDate', () => {
+    return Promise.resolve()
+      .then((resp) => {
+        return fsutil('./tests', 'data', '.withdot/text alignment.pdf').getPdfDate();
+      })
+      .then((resp) => {
+        expect(isValidDate(resp)).toBe(true);
+        if (isDate(resp)) {
+          process.env.TZ = 'CST';
+          expect(new Date(resp).toISOString()).toBe('2018-02-01T06:00:00.000Z');
+        }
+      })
+      .catch((err) => {
+        console.log(err);
+        throw err;
+      });
+  }, 1000);
   it('checksum', () => {
     return Promise.resolve()
       .then((resp) => {

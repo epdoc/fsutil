@@ -1,6 +1,6 @@
 {
   "name": "@epdoc/fsutil",
-  "version": "0.3.11",
+  "version": "0.4.1",
   "description": "File system related utilities",
   "keywords": [
     "fs",
@@ -27,18 +27,18 @@
     "publish": "npm publish --access public && echo 'Done.'"
   },
   "dependencies": {
+    "@epdoc/timeutil": "^2.4.1",
     "@epdoc/typeutil": "^1.0.8",
     "checksum": "^1.0.0",
     "fs-extra": "^11.2.0",
     "moment": "^2.30.1",
-    "pdf-parse": "^1.1.1"
+    "pdf2json": "^3.0.5"
   },
   "devDependencies": {
     "@types/checksum": "^0.1.35",
     "@types/fs-extra": "^11.0.4",
     "@types/jest": "^29.5.12",
     "@types/node": "^20.11.19",
-    "@types/pdf-parse": "^1.1.4",
     "eslint": "^8.56.0",
     "eslint-config-prettier": "^9.1.0",
     "eslint-plugin-import": "^2.29.1",

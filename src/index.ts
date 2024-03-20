@@ -1,4 +1,5 @@
 // import * as checksum from 'checksum';
+import { DateUtil } from '@epdoc/timeutil';
 import {
   DeepCopyOpts,
   Dict,
@@ -12,15 +13,15 @@ import {
   isString
 } from '@epdoc/typeutil';
 import checksum from 'checksum';
-import fs from 'fs';
 import * as fx from 'fs-extra';
-import path from 'path';
-import * as pdf from 'pdf-parse';
+import fs from 'node:fs';
+import path from 'node:path';
+import Pdfparser from 'pdf2json';
 
 const REG = {
   pdf: /\.pdf$/i,
   xml: /\.xml$/i,
-  json: /\.json$i/,
+  json: /\.json$/i,
   txt: /\.txt$/i
 };
 
@@ -168,7 +169,7 @@ export class FSUtil {
   }
 
   /**
-   * Retrieve the list of matching files in dir.
+   * Retrieve the list of matching files in dir. Does not return the full path.
    * @param regex (optional) Use to constrain results
    */
   async getFiles(regex?: RegExp): Promise<FolderPath[]> {
@@ -183,7 +184,7 @@ export class FSUtil {
             .isFile()
             .then((bIsFile) => {
               if (bIsFile && (!regex || regex.test(entry))) {
-                results.push(fullPath);
+                results.push(entry);
               }
             });
           jobs.push(job);
@@ -196,7 +197,8 @@ export class FSUtil {
   }
 
   /**
-   * Retrieve the list of matching folders in dir.
+   * Retrieve the list of matching folders in dir. Does not return the full
+   * path.
    * @param regex (optional) Use to constrain results
    */
   async getFolders(regex?: RegExp): Promise<FolderPath[]> {
@@ -211,7 +213,7 @@ export class FSUtil {
             .isDir()
             .then((bIsDir) => {
               if (bIsDir && (!regex || regex.test(entry))) {
-                results.push(fullPath);
+                results.push(entry);
               }
             });
           jobs.push(job);
@@ -228,25 +230,22 @@ export class FSUtil {
    * @param file
    */
   async getPdfDate(): Promise<Date | undefined> {
-    return fs.promises
-      .readFile(this.f)
-      .then((dataBuffer) => {
-        // @ts-ignore
-        return pdf.default(dataBuffer);
-      })
-      .then((data) => {
-        if (data && data.info && isString(data.info.CreationDate)) {
-          let ds = data.info.CreationDate;
-          ds = ds.replace(/^D:/, '');
-          const d: Date = new Date(
-            parseInt(ds.slice(0, 4), 10),
-            parseInt(ds.slice(4, 6), 10) - 1,
-            parseInt(ds.slice(6, 8), 10)
-          );
-          // console.log(d.toString());
-          return Promise.resolve(d);
+    return new Promise((resolve, reject) => {
+      const pdfParser = new Pdfparser();
+      pdfParser.on('readable', (resp) => {
+        if (resp && resp.Meta && resp.Meta.CreationDate) {
+          // const d = new Date(p[1], p[2], p[3], p[4], p[5], p[6]);
+          // d.tim;
+          const d = DateUtil.fromPdfDate(resp.Meta.CreationDate);
+          resolve(d ? d.date : undefined);
         }
+        resolve(new Date(0));
       });
+      pdfParser.on('pdfParser_dataError', (err) => {
+        reject(err);
+      });
+      pdfParser.loadPDF(this.f);
+    });
   }
 
   /**
