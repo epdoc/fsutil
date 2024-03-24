@@ -327,6 +327,21 @@ describe('fsutil', () => {
     const json2 = await fsutil(DEST).readJson();
     expect(json2).toEqual(json);
   });
+  test('json err', async () => {
+    const SRC = './tests/data/.withdot/broken.json';
+    return Promise.resolve()
+      .then((resp) => {
+        return fsutil(SRC).readJson();
+      })
+      .then((resp) => {
+        expect(true).toBe(false);
+      })
+      .catch((err) => {
+        expect(err.message).toEqual(
+          'Bad control character in string literal in JSON at position 120: ./tests/data/.withdot/broken.json'
+        );
+      });
+  });
 
   test('deep json', async () => {
     const opts = { pre: '{{', post: '}}', includeUrl: true };

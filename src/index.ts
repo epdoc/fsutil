@@ -6,6 +6,7 @@ import {
   deepCopy,
   deepCopySetDefaultOpts,
   isArray,
+  isError,
   isNonEmptyArray,
   isNonEmptyString,
   isObject,
@@ -242,7 +243,7 @@ export class FSUtil {
         resolve(new Date(0));
       });
       pdfParser.on('pdfParser_dataError', (err) => {
-        reject(err);
+        reject(this.newError(err));
       });
       pdfParser.loadPDF(this.f);
     });
@@ -257,7 +258,7 @@ export class FSUtil {
       // @ts-ignore
       checksum.file(this.f, (err, sum) => {
         if (err) {
-          reject(err);
+          reject(this.newError(err));
         } else {
           resolve(sum);
         }
@@ -296,7 +297,7 @@ export class FSUtil {
     return new Promise((resolve, reject) => {
       fs.readFile(this.f, 'utf8', (err, data) => {
         if (err) {
-          reject(err);
+          reject(this.newError(err));
         } else {
           resolve(data.toString());
         }
@@ -308,13 +309,13 @@ export class FSUtil {
     return new Promise((resolve, reject) => {
       fs.readFile(this.f, 'utf8', (err, data) => {
         if (err) {
-          reject(err);
+          reject(this.newError(err));
         } else {
           try {
             const json = JSON.parse(data.toString());
             resolve(json);
           } catch (error) {
-            reject(error);
+            reject(this.newError(error));
           }
         }
       });
@@ -418,7 +419,7 @@ export class FSUtil {
         return new Date(stats.birthtime || stats.mtime);
       })
       .catch((err) => {
-        return Promise.reject(err);
+        return Promise.reject(this.newError(err));
       });
   }
 
@@ -515,7 +516,11 @@ export class FSUtil {
     });
   }
 
-  newError(code: string, message: string): Error {
+  newError(code: any, message?: string): Error {
+    if (isError(code)) {
+      code.message = `${code.message}: ${this.f}`;
+      return code;
+    }
     let err: Error = new Error(`${message}: ${this.f}`);
     // @ts-ignore
     err.code = code;
