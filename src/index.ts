@@ -1,23 +1,29 @@
+import { isArray } from 'epdoc-util';
 // import * as checksum from 'checksum';
 import { DateUtil } from '@epdoc/timeutil';
 import {
   DeepCopyOpts,
   Dict,
+  Integer,
   deepCopy,
   deepCopySetDefaultOpts,
-  isArray,
   isError,
   isNonEmptyArray,
   isNonEmptyString,
   isObject,
   isRegExp,
-  isString
+  isString,
+  pad
 } from '@epdoc/typeutil';
 import checksum from 'checksum';
 import * as fx from 'fs-extra';
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
-import Pdfparser from 'pdf2json';
+// import Pdfparser from 'pdf2json';
+// import Pdfparser from 'pdf2json';
+
+let PdfParser: any;
 
 const REG = {
   pdf: /\.pdf$/i,
@@ -52,6 +58,7 @@ export type SafeCopyOpts = Partial<{
   overwrite: boolean; // if backup and index are not set, and this is set, then overwrite the old file
   backup: boolean; // backup dest as dest~, will overwrite previous backups
   index: boolean; // add a count to the filename until we find one that isn't taken
+  limit: Integer;
   test: boolean; // don't actually move or copy the file, just execute the logic around it
 }>;
 
@@ -59,9 +66,39 @@ export function fsutil(...args: FilePath[] | FolderPath[]): FSUtil {
   return new FSUtil(...args);
 }
 
+class FSStats {
+  public stats: any;
+
+  constructor(stats?: any) {
+    if (stats) {
+      this.stats = stats;
+    }
+  }
+
+  exists(): boolean {
+    return this.stats && (this.stats.isDirectory() || this.stats.isFile());
+  }
+
+  isDirectory(): boolean {
+    return this.stats && this.stats.isDirectory();
+  }
+
+  isFile(): boolean {
+    return this.stats && this.stats.isFile();
+  }
+
+  createdAt(): Date | undefined {
+    if (this.stats) {
+      return new Date(this.stats.birthtime || this.stats.mtime);
+    }
+  }
+}
+
 export class FSUtil {
   // @ts-ignore
-  private f: FilePath | FolderPath;
+  protected f: FilePath | FolderPath;
+  // @ts-ignore
+  protected _stats: FSStats;
 
   constructor(...args: FilePath[] | FolderPath[]) {
     if (args.length === 1) {
@@ -73,6 +110,30 @@ export class FSUtil {
     } else if (args.length > 1) {
       this.f = path.resolve(...args);
     }
+  }
+
+  add(...args: FilePath[] | FolderPath[]): this {
+    if (args.length === 1) {
+      if (isArray(args[0])) {
+        this.f = path.resolve(this.f, ...args[0]);
+      } else {
+        this.f = path.resolve(this.f, args[0]);
+      }
+    } else if (args.length > 1) {
+      this.f = path.resolve(this.f, ...args);
+    }
+    return this;
+  }
+
+  /**
+   * Set the path to the home dir
+   */
+  home(...args: FilePath[] | FolderPath[]): this {
+    this.f = os.userInfo().homedir;
+    if (args) {
+      this.add(...args);
+    }
+    return this;
   }
 
   get path(): FilePath {
@@ -99,6 +160,13 @@ export class FSUtil {
    */
   get extname(): string {
     return path.extname(this.f);
+  }
+
+  /**
+   * Returns file.name.html portion of /path/to/file.name.html'
+   */
+  get filename(): string {
+    return path.basename(this.f);
   }
 
   isType(...type: (RegExp | string)[]): boolean {
@@ -232,20 +300,30 @@ export class FSUtil {
    */
   async getPdfDate(): Promise<Date | undefined> {
     return new Promise((resolve, reject) => {
-      const pdfParser = new Pdfparser();
-      pdfParser.on('readable', (resp) => {
-        if (resp && resp.Meta && resp.Meta.CreationDate) {
-          // const d = new Date(p[1], p[2], p[3], p[4], p[5], p[6]);
-          // d.tim;
-          const d = DateUtil.fromPdfDate(resp.Meta.CreationDate);
-          resolve(d ? d.date : undefined);
-        }
-        resolve(new Date(0));
-      });
-      pdfParser.on('pdfParser_dataError', (err) => {
-        reject(this.newError(err));
-      });
-      pdfParser.loadPDF(this.f);
+      return Promise.resolve()
+        .then((resp) => {
+          if (!PdfParser) {
+            return import('pdf2json').then((resp) => {
+              PdfParser = resp;
+            });
+          }
+        })
+        .then((resp) => {
+          const pdfParser = new PdfParser();
+          pdfParser.on('readable', (resp: any) => {
+            if (resp && resp.Meta && resp.Meta.CreationDate) {
+              // const d = new Date(p[1], p[2], p[3], p[4], p[5], p[6]);
+              // d.tim;
+              const d = DateUtil.fromPdfDate(resp.Meta.CreationDate);
+              resolve(d ? d.date : undefined);
+            }
+            resolve(new Date(0));
+          });
+          pdfParser.on('pdfParser_dataError', (err: Error) => {
+            reject(this.newError(err));
+          });
+          pdfParser.loadPDF(this.f);
+        });
     });
   }
 
@@ -383,44 +461,39 @@ export class FSUtil {
   }
 
   async exists(): Promise<boolean> {
-    try {
-      const resp: fs.Stats = await fs.promises.stat(this.f);
-      return resp.isDirectory() || resp.isFile();
-    } catch (err) {
-      return Promise.resolve(false);
-    }
+    return this.stats().then((resp) => {
+      return this._stats.isDirectory() || this._stats.isFile();
+    });
   }
 
   async dirExists(): Promise<boolean> {
-    try {
-      const resp: fs.Stats = await fs.promises.stat(this.f);
-      return resp.isDirectory();
-    } catch (err) {
-      return Promise.resolve(false);
-    }
+    return this.stats().then((resp) => {
+      return this._stats.isDirectory();
+    });
   }
 
   async fileExists(): Promise<boolean> {
+    return this.stats().then((resp) => {
+      return this._stats.isFile();
+    });
+  }
+
+  async stats(): Promise<void> {
     return fs.promises
       .stat(this.f)
       .then((resp: fs.Stats) => {
-        return resp.isFile();
+        this._stats = new FSStats(resp);
       })
       .catch((err) => {
-        return Promise.resolve(false);
+        this._stats = new FSStats();
+        return Promise.resolve();
       });
   }
 
-  async createdAt(p: FilePath): Promise<Date> {
-    return fs.promises
-      .stat(this.f)
-      .then((stats: fs.Stats) => {
-        // const birthTime: Stats.birthtimeMs = stats.birthtime;
-        return new Date(stats.birthtime || stats.mtime);
-      })
-      .catch((err) => {
-        return Promise.reject(this.newError(err));
-      });
+  async createdAt(p: FilePath): Promise<Date | undefined> {
+    return this.stats().then((resp) => {
+      return this._stats.createdAt();
+    });
   }
 
   /**
@@ -431,89 +504,59 @@ export class FSUtil {
    * @returns True if file was copied or moved, false otherwise
    */
   async safeCopy(destFile: FilePath, opts: SafeCopyOpts = {}): Promise<boolean | undefined> {
-    return Promise.reject(new Error('The safeCopy function has not yet been implemented'));
-    return this.fileExists().then((sourceExists) => {
-      let destFileExists: boolean;
-      let destPath: FilePath = destFile;
-      const destDir: FolderPath = path.dirname(destFile);
-      if (sourceExists) {
-        return fsutil(destFile)
-          .fileExists()
-          .then((resp) => {
-            destFileExists = resp;
-            if (opts.ensureDir) {
-              return fsutil(destDir).ensureDir();
-            }
-          })
-          .then(() => {
-            return fsutil(destDir).dirExists();
-          })
-          .then((destDirExists) => {
-            if (destFileExists) {
-              if (opts.backup) {
-                const bakDest: FilePath = destFile + '~';
-                return fsutil(destFile)
-                  .moveTo(bakDest, { overwrite: true })
-                  .then((resp) => {
-                    return Promise.resolve(true);
-                  });
-              } else if (opts.index) {
-                let count = 0;
-                const parts = path.parse(destFile);
-                destPath = path.resolve(parts.dir, parts.name + '-' + ++count + parts.ext);
-                while (fs.existsSync(destPath) && count < 10) {
-                  destPath = path.resolve(parts.dir, parts.name + '-' + ++count + parts.ext);
-                }
-                if (count >= 10) {
-                  if (opts.errorOnExist) {
-                    throw this.newError('EEXIST', 'File exists');
-                  }
-                  return Promise.resolve(false);
-                }
-              } else if (!opts.overwrite) {
-                if (opts.errorOnExist) {
-                  throw this.newError('EEXIST', 'File exists');
-                } else {
-                  return Promise.resolve(false);
-                }
-              }
-              return Promise.resolve(true);
-            } else if (destDirExists) {
-              return Promise.resolve(true);
-            } else {
-              return Promise.resolve(false);
-            }
-          })
-          .then((doIt: boolean) => {
-            if (doIt) {
-              if (opts.move) {
-                if (opts.test) {
-                  // console.log(`  Skipped move ${srcFile} to ${destPath}`);
-                } else {
-                  return this.moveTo(destPath, { overwrite: true }).then((resp) => {
-                    // console.log(`  Moved ${srcFile} to ${destPath}`);
-                    return Promise.resolve(true);
-                  });
-                }
-              } else {
-                if (opts.test) {
-                  // console.log(`  Skipped copy ${srcFile} to ${destPath}`);
-                } else {
-                  return this.copyTo(destPath, { overwrite: true }).then((resp) => {
-                    // console.log(`  Copied ${srcFile} to ${destPath}`);
-                    return Promise.resolve(true);
-                  });
-                }
-              }
+    await this.stats();
+
+    if (this._stats && this._stats.exists()) {
+      const fsDest = fsutil(destFile);
+      await fsDest.stats();
+
+      if (fsDest._stats.exists()) {
+        // The dest already exists. Deal with it
+        if (opts.backup) {
+          const bakDest: FilePath = destFile + '~';
+          return fsDest.moveTo(bakDest, { overwrite: true }).then((resp) => {
+            return Promise.resolve(true);
+          });
+        } else if (opts.index) {
+          const limit = opts.limit ? opts.limit : 10;
+          let count = 0;
+          let newFsDest = fsutil(fsDest.dirname, fsDest.basename + '-' + pad(++count, 2) + fsDest.extname);
+          while (newFsDest.exists()) {
+            newFsDest = fsutil(fsDest.dirname, fsDest.basename + '-' + pad(++count, 2) + fsDest.extname);
+          }
+          if (count >= limit) {
+            if (opts.errorOnExist) {
+              throw this.newError('EEXIST', 'File exists');
             }
             return Promise.resolve(false);
-          });
-      } else {
-        if (opts.errorOnNoSource) {
-          throw this.newError('ENOENT', 'File does not exist');
+          }
+        } else if (!opts.overwrite) {
+          if (opts.errorOnExist) {
+            throw this.newError('EEXIST', 'File exists');
+          } else {
+            return Promise.resolve(false);
+          }
         }
       }
-    });
+
+      if (opts.move) {
+        return this.moveTo(fsDest.path, { overwrite: true }).then((resp) => {
+          // console.log(`  Moved ${srcFile} to ${destPath}`);
+          return Promise.resolve(true);
+        });
+      } else {
+        return this.copyTo(fsDest.path, { overwrite: true }).then((resp) => {
+          // console.log(`  Copied ${srcFile} to ${destPath}`);
+          return Promise.resolve(true);
+        });
+      }
+    } else {
+      if (opts.errorOnNoSource) {
+        throw this.newError('ENOENT', 'File does not exist');
+      }
+    }
+
+    return Promise.resolve(false);
   }
 
   newError(code: any, message?: string): Error {

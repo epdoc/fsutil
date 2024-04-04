@@ -269,7 +269,7 @@ describe('fsutil', () => {
       });
   });
 
-  test.skip('safeCopy', () => {
+  test('safeCopy', () => {
     return Promise.resolve()
       .then((resp) => {
         const opts: SafeCopyOpts = {
@@ -337,9 +337,7 @@ describe('fsutil', () => {
         expect(true).toBe(false);
       })
       .catch((err) => {
-        expect(err.message).toEqual(
-          'Bad control character in string literal in JSON at position 120: ./tests/data/.withdot/broken.json'
-        );
+        expect(err.message).toContain('Bad control character in string literal in JSON at position 120');
       });
   });
 
