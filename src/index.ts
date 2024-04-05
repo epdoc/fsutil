@@ -5,8 +5,10 @@ import {
   DeepCopyOpts,
   Dict,
   Integer,
+  asInt,
   deepCopy,
   deepCopySetDefaultOpts,
+  isBoolean,
   isError,
   isNonEmptyArray,
   isNonEmptyString,
@@ -20,10 +22,7 @@ import * as fx from 'fs-extra';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-// import Pdfparser from 'pdf2json';
-// import Pdfparser from 'pdf2json';
-
-let PdfParser: any;
+import Pdfparser from 'pdf2json';
 
 const REG = {
   pdf: /\.pdf$/i,
@@ -53,63 +52,91 @@ export type FsDeepCopyOpts = DeepCopyOpts & {
 export type SafeCopyOpts = Partial<{
   errorOnNoSource: boolean;
   errorOnExist: boolean;
-  move: boolean; // Set to true to move the file rather than copy the file
+  // Set to true to move the file rather than copy the file
+  move: boolean;
   ensureDir: boolean; // Ensure the parent dest folder exists
-  overwrite: boolean; // if backup and index are not set, and this is set, then overwrite the old file
-  backup: boolean; // backup dest as dest~, will overwrite previous backups
-  index: boolean; // add a count to the filename until we find one that isn't taken
-  limit: Integer;
-  test: boolean; // don't actually move or copy the file, just execute the logic around it
+  // if backup and index are not set, and this is set, then overwrite the old file
+  overwrite: boolean;
+  // backup dest as dest~, will overwrite previous backups
+  backup: boolean;
+  // add a count to the filename until we find one that isn't taken. If an integer, only allow this many counts to be tried.
+  index: boolean | Integer;
+  // don't actually move or copy the file, just execute the logic around it
+  test: boolean;
 }>;
 
-export function fsutil(...args: FilePath[] | FolderPath[]): FSUtil {
+export function fsutil(...args: FSUtil[] | FilePath[] | FolderPath[]): FSUtil {
   return new FSUtil(...args);
 }
 
-class FSStats {
-  public stats: any;
+export class FSStats {
+  protected _isFSStats = true;
+  public _stats: any;
 
   constructor(stats?: any) {
     if (stats) {
-      this.stats = stats;
+      this._stats = stats;
     }
   }
 
+  static isInstance(val: any): val is FSStats {
+    return val && val._isFSStats === true;
+  }
+
   exists(): boolean {
-    return this.stats && (this.stats.isDirectory() || this.stats.isFile());
+    if (this._stats) {
+      return this._stats.isDirectory() === true || this._stats.isFile() === true;
+    }
+    return false;
   }
 
   isDirectory(): boolean {
-    return this.stats && this.stats.isDirectory();
+    if (this._stats) {
+      return this._stats.isDirectory() === true;
+    }
+    return false;
   }
 
   isFile(): boolean {
-    return this.stats && this.stats.isFile();
+    if (this._stats) {
+      return this._stats.isFile() === true;
+    }
+    return false;
   }
 
   createdAt(): Date | undefined {
-    if (this.stats) {
-      return new Date(this.stats.birthtime || this.stats.mtime);
+    if (this._stats) {
+      return new Date(this._stats.birthtime || this._stats.mtime);
     }
   }
 }
 
 export class FSUtil {
+  protected _isFSUtil = true;
   // @ts-ignore
   protected f: FilePath | FolderPath;
   // @ts-ignore
   protected _stats: FSStats;
 
-  constructor(...args: FilePath[] | FolderPath[]) {
+  constructor(...args: FSUtil[] | FilePath[] | FolderPath[]) {
     if (args.length === 1) {
-      if (isArray(args[0])) {
+      if (FSUtil.isInstance(args[0])) {
+        this.f = args[0].f;
+      } else if (isArray(args[0])) {
         this.f = path.resolve(args[0]);
       } else {
         this.f = args[0];
       }
     } else if (args.length > 1) {
-      this.f = path.resolve(...args);
+      if (FSUtil.isInstance(args[0])) {
+        throw new Error('Invalid parameter');
+      }
+      this.f = path.resolve(...(args as string[]));
     }
+  }
+
+  static isInstance(val: any): val is FSUtil {
+    return val && val._isFSUtil === true;
   }
 
   add(...args: FilePath[] | FolderPath[]): this {
@@ -224,17 +251,20 @@ export class FSUtil {
     return fx.remove(this.f);
   }
 
-  async copyTo(dest: FilePath, options?: fx.CopyOptions): Promise<void> {
-    return fx.copy(this.f, dest, options);
+  async copyTo(dest: FilePath | FSUtil, options?: fx.CopyOptions): Promise<void> {
+    const p: FilePath = FSUtil.isInstance(dest) ? dest.path : dest;
+    return fx.copy(this.f, p, options);
   }
 
-  copySync(dest: FilePath, options?: fx.CopyOptionsSync): this {
-    fx.copySync(this.f, dest, options);
+  copySync(dest: FilePath | FSUtil, options?: fx.CopyOptionsSync): this {
+    const p: FilePath = FSUtil.isInstance(dest) ? dest.path : dest;
+    fx.copySync(this.f, p, options);
     return this;
   }
 
-  async moveTo(dest: FilePath, options?: fx.MoveOptions): Promise<void> {
-    return fx.move(this.f, dest, options);
+  async moveTo(dest: FilePath | FSUtil, options?: fx.MoveOptions): Promise<void> {
+    const p: FilePath = FSUtil.isInstance(dest) ? dest.path : dest;
+    return fx.move(this.f, p, options);
   }
 
   /**
@@ -300,30 +330,20 @@ export class FSUtil {
    */
   async getPdfDate(): Promise<Date | undefined> {
     return new Promise((resolve, reject) => {
-      return Promise.resolve()
-        .then((resp) => {
-          if (!PdfParser) {
-            return import('pdf2json').then((resp) => {
-              PdfParser = resp;
-            });
-          }
-        })
-        .then((resp) => {
-          const pdfParser = new PdfParser();
-          pdfParser.on('readable', (resp: any) => {
-            if (resp && resp.Meta && resp.Meta.CreationDate) {
-              // const d = new Date(p[1], p[2], p[3], p[4], p[5], p[6]);
-              // d.tim;
-              const d = DateUtil.fromPdfDate(resp.Meta.CreationDate);
-              resolve(d ? d.date : undefined);
-            }
-            resolve(new Date(0));
-          });
-          pdfParser.on('pdfParser_dataError', (err: Error) => {
-            reject(this.newError(err));
-          });
-          pdfParser.loadPDF(this.f);
-        });
+      const pdfParser = new Pdfparser();
+      pdfParser.on('readable', (resp: any) => {
+        if (resp && resp.Meta && resp.Meta.CreationDate) {
+          // const d = new Date(p[1], p[2], p[3], p[4], p[5], p[6]);
+          // d.tim;
+          const d = DateUtil.fromPdfDate(resp.Meta.CreationDate);
+          resolve(d ? d.date : undefined);
+        }
+        resolve(new Date(0));
+      });
+      pdfParser.on('pdfParser_dataError', (errMsg: string) => {
+        reject(this.newError(errMsg));
+      });
+      pdfParser.loadPDF(this.f);
     });
   }
 
@@ -453,11 +473,15 @@ export class FSUtil {
   }
 
   async isDir(): Promise<boolean> {
-    return this.dirExists();
+    return this.stats().then((resp) => {
+      return this._stats.isDirectory();
+    });
   }
 
   async isFile(): Promise<boolean> {
-    return this.fileExists();
+    return this.stats().then((resp) => {
+      return this._stats.isFile();
+    });
   }
 
   async exists(): Promise<boolean> {
@@ -478,15 +502,16 @@ export class FSUtil {
     });
   }
 
-  async stats(): Promise<void> {
+  async stats(): Promise<FSStats> {
     return fs.promises
       .stat(this.f)
       .then((resp: fs.Stats) => {
         this._stats = new FSStats(resp);
+        return Promise.resolve(this._stats);
       })
       .catch((err) => {
         this._stats = new FSStats();
-        return Promise.resolve();
+        return Promise.resolve(this._stats);
       });
   }
 
@@ -497,58 +522,66 @@ export class FSUtil {
   }
 
   /**
-   * Copy a file or directory.
+   * Copy a file or directory. Optionally creates a backup if there is an existing file or directory at `destFile`.
    * @param srcFile
    * @param destFile
    * @param opts
    * @returns True if file was copied or moved, false otherwise
    */
-  async safeCopy(destFile: FilePath, opts: SafeCopyOpts = {}): Promise<boolean | undefined> {
+  async safeCopy(destFile: FilePath | FSUtil, opts: SafeCopyOpts = {}): Promise<boolean | undefined> {
     await this.stats();
 
     if (this._stats && this._stats.exists()) {
-      const fsDest = fsutil(destFile);
+      const fsDest = FSUtil.isInstance(destFile) ? destFile : fsutil(destFile);
       await fsDest.stats();
 
+      let bGoAhead = true;
       if (fsDest._stats.exists()) {
+        bGoAhead = false;
         // The dest already exists. Deal with it
         if (opts.backup) {
           const bakDest: FilePath = destFile + '~';
-          return fsDest.moveTo(bakDest, { overwrite: true }).then((resp) => {
-            return Promise.resolve(true);
-          });
+          await fsDest.moveTo(bakDest, { overwrite: true });
+          bGoAhead = true;
         } else if (opts.index) {
-          const limit = opts.limit ? opts.limit : 10;
+          const limit = isBoolean(opts.index) ? 10 : asInt(opts.index);
+          let newFsDest: FSUtil;
           let count = 0;
-          let newFsDest = fsutil(fsDest.dirname, fsDest.basename + '-' + pad(++count, 2) + fsDest.extname);
-          while (newFsDest.exists()) {
+          let looking = true;
+          while (looking) {
             newFsDest = fsutil(fsDest.dirname, fsDest.basename + '-' + pad(++count, 2) + fsDest.extname);
+            looking = await newFsDest.exists();
           }
-          if (count >= limit) {
+          // @ts-ignore
+          if (!looking && newFsDest) {
+            await fsDest.moveTo(newFsDest, { overwrite: true });
+            bGoAhead = true;
+          } else {
             if (opts.errorOnExist) {
               throw this.newError('EEXIST', 'File exists');
             }
-            return Promise.resolve(false);
           }
         } else if (!opts.overwrite) {
           if (opts.errorOnExist) {
             throw this.newError('EEXIST', 'File exists');
-          } else {
-            return Promise.resolve(false);
           }
         }
       }
 
-      if (opts.move) {
-        return this.moveTo(fsDest.path, { overwrite: true }).then((resp) => {
-          // console.log(`  Moved ${srcFile} to ${destPath}`);
-          return Promise.resolve(true);
-        });
+      if (bGoAhead) {
+        if (opts.move) {
+          return this.moveTo(fsDest.path, { overwrite: true }).then((resp) => {
+            // console.log(`  Moved ${srcFile} to ${destPath}`);
+            return Promise.resolve(true);
+          });
+        } else {
+          return this.copyTo(fsDest.path, { overwrite: true }).then((resp) => {
+            // console.log(`  Copied ${srcFile} to ${destPath}`);
+            return Promise.resolve(true);
+          });
+        }
       } else {
-        return this.copyTo(fsDest.path, { overwrite: true }).then((resp) => {
-          // console.log(`  Copied ${srcFile} to ${destPath}`);
-          return Promise.resolve(true);
-        });
+        return Promise.resolve(false);
       }
     } else {
       if (opts.errorOnNoSource) {

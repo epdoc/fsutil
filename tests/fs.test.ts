@@ -1,17 +1,27 @@
 import { isDate, isValidDate } from '@epdoc/typeutil';
 import { isArray } from 'epdoc-util';
-import { FSUtil, SafeCopyOpts, fsutil, isFilePath, isFilename, isFolderPath } from './../src/index';
+import os from 'node:os';
+import path from 'node:path';
+import { FSStats, FSUtil, SafeCopyOpts, fsutil, isFilePath, isFilename, isFolderPath } from './../src/index';
+
+const HOME = os.userInfo().homedir;
 
 describe('fsutil', () => {
   beforeEach(async () => {
     await fsutil('./tests/data').copyTo('./tests/data1');
     await fsutil('./tests/data2').remove();
+    await fsutil('./tests/data2-01').remove();
+    await fsutil('./tests/data2-02').remove();
+    await fsutil('./tests/data2-03').remove();
     await fsutil('./tests/data3').remove();
   });
 
   afterAll(async () => {
     await fsutil('./tests/data1').remove();
     await fsutil('./tests/data2').remove();
+    await fsutil('./tests/data2-01').remove();
+    await fsutil('./tests/data2-02').remove();
+    await fsutil('./tests/data2-03').remove();
     await fsutil('./tests/data3').remove();
   });
 
@@ -25,7 +35,6 @@ describe('fsutil', () => {
       .then((resp) => {
         expect(isArray(resp)).toBe(true);
         expect(resp.length).toBe(2);
-        console.log(JSON.stringify(resp));
         resp = resp.sort();
         expect(resp[0]).toMatch(/data$/);
         expect(resp[1]).toMatch(/data1$/);
@@ -41,7 +50,6 @@ describe('fsutil', () => {
       .then((resp) => {
         expect(isArray(resp)).toBe(true);
         expect(resp.length).toBe(1);
-        console.log(JSON.stringify(resp));
         resp = resp.sort();
         expect(resp[0]).toMatch(/fs\.test\.ts$/);
       });
@@ -109,6 +117,19 @@ describe('fsutil', () => {
         expect(resp).toBe(true);
       });
   });
+  test('fs Stats', () => {
+    return Promise.resolve()
+      .then((resp) => {
+        return fsutil('./tests').stats();
+      })
+      .then((stats) => {
+        expect(FSStats.isInstance(stats)).toBe(true);
+        expect(stats.exists()).toBe(true);
+        expect(stats.isDirectory()).toBe(true);
+        expect(stats.isFile()).toBe(false);
+        expect(isValidDate(stats.createdAt())).toBe(true);
+      });
+  });
   test('constructor with .folder', () => {
     return Promise.resolve()
       .then((resp) => {
@@ -129,6 +150,11 @@ describe('fsutil', () => {
   it('constructor', () => {
     expect(fsutil('home', 'file.json').basename).toBe('file');
     expect(fsutil('/home', 'file.json').path).toBe('/home/file.json');
+  }, 1000);
+  it('constructor with HOME', () => {
+    const fs = new FSUtil().home().add('.folder').add('file.txt');
+    expect(fs.path).toBe(path.resolve(HOME, '.folder', 'file.txt'));
+    expect(fs.filename).toBe('file.txt');
   }, 1000);
   it('guards', () => {
     expect(isFilename('hello')).toBe(true);
@@ -183,6 +209,21 @@ describe('fsutil', () => {
         expect(resp).toBe('cacc6f06ae07f842663cb1b1722cafbee9b4d203');
       });
   }, 1000);
+  it('newError string', () => {
+    const fs = new FSUtil('my/path/to/file.txt');
+    const err = fs.newError(23, 'my message');
+    // @ts-ignore
+    expect(err.code).toEqual(23);
+    expect(err.message).toEqual('my message: my/path/to/file.txt');
+  });
+  it('newError Error', () => {
+    const fs = new FSUtil('my/path/to/file.txt');
+    const err0 = new Error('hello');
+    const err = fs.newError(err0);
+    // @ts-ignore
+    expect(err.code).toBeUndefined();
+    expect(err.message).toEqual('hello: my/path/to/file.txt');
+  });
   test('fsEqual', () => {
     return Promise.resolve()
       .then((resp) => {
@@ -278,7 +319,7 @@ describe('fsutil', () => {
         return fsutil('./tests/data1').safeCopy('./tests/data2', opts);
       })
       .then((resp) => {
-        expect(resp).toBeUndefined();
+        expect(resp).toBe(true);
         return fsutil('./tests/data2').isDir();
       })
       .then((resp) => {
@@ -295,26 +336,22 @@ describe('fsutil', () => {
       })
       .then((resp) => {
         expect(resp).toBe(true);
-        return fsutil('./tests/data2').moveTo('./tests/data3');
-      })
-      .then((resp) => {
-        expect(resp).toBeUndefined();
-        return fsutil('./tests/data2').isDir();
-      })
-      .then((resp) => {
-        expect(resp).toEqual(false);
-        return fsutil('./tests/data3').isDir();
+        const opts: SafeCopyOpts = {
+          ensureDir: false,
+          index: 5
+        };
+        return fsutil('./tests/data1').safeCopy('./tests/data2', opts);
       })
       .then((resp) => {
         expect(resp).toEqual(true);
-        return fsutil('./tests/data3').remove();
+        return fsutil('./tests/data2').isDir();
       })
       .then((resp) => {
-        expect(resp).toBeUndefined();
-        return fsutil('./tests/data3').isDir();
+        expect(resp).toEqual(true);
+        return fsutil('./tests/data2-01').isDir();
       })
       .then((resp) => {
-        expect(resp).toBe(false);
+        expect(resp).toEqual(true);
       });
   });
 
