@@ -155,6 +155,9 @@ describe('fsutil', () => {
     const fs = new FSUtil().home().add('.folder').add('file.txt');
     expect(fs.path).toBe(path.resolve(HOME, '.folder', 'file.txt'));
     expect(fs.filename).toBe('file.txt');
+    expect(fs.parts[0]).toEqual(HOME);
+    expect(fs.parts[1]).toEqual('.folder');
+    expect(fs.parts[2]).toEqual('file.txt');
   }, 1000);
   it('guards', () => {
     expect(isFilename('hello')).toBe(true);
@@ -215,14 +218,20 @@ describe('fsutil', () => {
     // @ts-ignore
     expect(err.code).toEqual(23);
     expect(err.message).toEqual('my message: my/path/to/file.txt');
+    expect(fs.parts.length).toEqual(1);
+    expect(fs.parts[0]).toEqual('my/path/to/file.txt');
   });
   it('newError Error', () => {
-    const fs = new FSUtil('my/path/to/file.txt');
+    const fs = new FSUtil('my/path/to', 'file.txt');
     const err0 = new Error('hello');
     const err = fs.newError(err0);
     // @ts-ignore
     expect(err.code).toBeUndefined();
-    expect(err.message).toEqual('hello: my/path/to/file.txt');
+    const val = path.resolve('my/path/to', 'file.txt');
+    expect(err.message).toEqual('hello: ' + val);
+    expect(fs.parts.length).toEqual(2);
+    expect(fs.parts[0]).toEqual('my/path/to');
+    expect(fs.parts[1]).toEqual('file.txt');
   });
   test('fsEqual', () => {
     return Promise.resolve()

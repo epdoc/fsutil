@@ -117,20 +117,27 @@ export class FSUtil {
   protected f: FilePath | FolderPath;
   // @ts-ignore
   protected _stats: FSStats;
+  protected _args: (FilePath | FolderPath)[] = [];
 
   constructor(...args: FSUtil[] | FilePath[] | FolderPath[]) {
     if (args.length === 1) {
       if (FSUtil.isInstance(args[0])) {
         this.f = args[0].f;
+        this._args = [args[0].f];
       } else if (isArray(args[0])) {
         this.f = path.resolve(args[0]);
+        this._args = args[0];
       } else {
         this.f = args[0];
+        this._args = [args[0]];
       }
     } else if (args.length > 1) {
-      if (FSUtil.isInstance(args[0])) {
-        throw new Error('Invalid parameter');
-      }
+      args.forEach((arg) => {
+        if (FSUtil.isInstance(arg)) {
+          throw new Error('Invalid parameter');
+        }
+        this._args.push(arg);
+      });
       this.f = path.resolve(...(args as string[]));
     }
   }
@@ -143,11 +150,18 @@ export class FSUtil {
     if (args.length === 1) {
       if (isArray(args[0])) {
         this.f = path.resolve(this.f, ...args[0]);
+        args[0].forEach((arg) => {
+          this._args.push(arg);
+        });
       } else {
         this.f = path.resolve(this.f, args[0]);
+        this._args.push(args[0]);
       }
     } else if (args.length > 1) {
       this.f = path.resolve(this.f, ...args);
+      args.forEach((arg) => {
+        this._args.push(arg);
+      });
     }
     return this;
   }
@@ -157,6 +171,7 @@ export class FSUtil {
    */
   home(...args: FilePath[] | FolderPath[]): this {
     this.f = os.userInfo().homedir;
+    this._args = [this.f];
     if (args) {
       this.add(...args);
     }
@@ -165,6 +180,15 @@ export class FSUtil {
 
   get path(): FilePath {
     return this.f;
+  }
+
+  /**
+   * Return the original parts that were used to make this.f. The value may
+   * become out of sync with the actual value of this.f if too many operations
+   * were performed on the path.
+   */
+  get parts(): string[] {
+    return this._args;
   }
 
   /**
@@ -268,7 +292,8 @@ export class FSUtil {
   }
 
   /**
-   * Retrieve the list of matching files in dir. Does not return the full path.
+   * Retrieve the list of matching files in dir. Returns just the filename, not
+   * the full path.
    * @param regex (optional) Use to constrain results
    */
   async getFiles(regex?: RegExp): Promise<FolderPath[]> {
@@ -463,7 +488,7 @@ export class FSUtil {
   }
 
   async writeJson(data: any): Promise<void> {
-    const buf = Buffer.from(JSON.stringify(data, null, '  '));
+    const buf = Buffer.from(JSON.stringify(data, null, 2), 'utf8');
     return fs.promises.writeFile(this.f, buf);
   }
 
