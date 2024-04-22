@@ -556,9 +556,9 @@ export class FSUtil {
   /**
    * Backup the file
    * @param opts
-   * @returns True if file was backed up, or if the file doesn't exist
+   * @returns Path to file if file was backed up, or true if the file doesn't exist
    */
-  async backup(opts: SafeCopyOpts = {}): Promise<boolean> {
+  async backup(opts: SafeCopyOpts = {}): Promise<FilePath | boolean> {
     await this.stats();
 
     if (this._stats && this._stats.exists()) {
@@ -591,7 +591,7 @@ export class FSUtil {
       if (newPath) {
         return this.moveTo(newPath, { overwrite: true })
           .then((resp) => {
-            return Promise.resolve(true);
+            return Promise.resolve(newPath as FilePath);
           })
           .catch((err) => {
             throw this.newError('ENOENT', 'File could not be renamed');
@@ -617,7 +617,7 @@ export class FSUtil {
       const fsDest = FSUtil.isInstance(destFile) ? destFile : fsutil(destFile);
       await fsDest.stats();
 
-      let bGoAhead = true;
+      let bGoAhead: FilePath | boolean = true;
       if (fsDest._stats.exists()) {
         bGoAhead = false;
         // The dest already exists. Deal with it
