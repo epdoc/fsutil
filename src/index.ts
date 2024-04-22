@@ -493,7 +493,14 @@ export class FSUtil {
   }
 
   async writeBase64(data: string): Promise<void> {
-    const buf = Buffer.from(data, 'base64');
+    return this.write(data, 'base64');
+  }
+
+  async write(data: string | string[], type: BufferEncoding = 'utf8'): Promise<void> {
+    if (isArray(data)) {
+      data = data.join('\n');
+    }
+    const buf = Buffer.from(data, type);
     return fs.promises.writeFile(this.f, buf);
   }
 
@@ -547,6 +554,56 @@ export class FSUtil {
   }
 
   /**
+   * Backup the file
+   * @param opts
+   * @returns True if file was backed up, or if the file doesn't exist
+   */
+  async backup(opts: SafeCopyOpts = {}): Promise<boolean> {
+    await this.stats();
+
+    if (this._stats && this._stats.exists()) {
+      // this file already exists. Deal with it by renaming it.
+      let newPath: FilePath | undefined = undefined;
+      if (opts.backup) {
+        newPath = this.path + '~';
+      } else if (opts.index) {
+        const limit = isBoolean(opts.index) ? 32 : asInt(opts.index);
+        let newFsDest: FSUtil;
+        let count = 0;
+        let looking = true;
+        while (looking) {
+          newFsDest = fsutil(this.dirname, this.basename + '-' + pad(++count, 2) + this.extname);
+          looking = await newFsDest.exists();
+        }
+        // @ts-ignore
+        if (!looking && newFsDest) {
+          newPath = newFsDest.path;
+        } else {
+          if (opts.errorOnExist) {
+            throw this.newError('EEXIST', 'File exists');
+          }
+        }
+      } else if (!opts.overwrite) {
+        if (opts.errorOnExist) {
+          throw this.newError('EEXIST', 'File exists');
+        }
+      }
+      if (newPath) {
+        return this.moveTo(newPath, { overwrite: true })
+          .then((resp) => {
+            return Promise.resolve(true);
+          })
+          .catch((err) => {
+            throw this.newError('ENOENT', 'File could not be renamed');
+          });
+      }
+    } else if (opts.errorOnNoSource) {
+      throw this.newError('ENOENT', 'File does not exist');
+    }
+    return Promise.resolve(true);
+  }
+
+  /**
    * Copy a file or directory. Optionally creates a backup if there is an existing file or directory at `destFile`.
    * @param srcFile
    * @param destFile
@@ -564,33 +621,7 @@ export class FSUtil {
       if (fsDest._stats.exists()) {
         bGoAhead = false;
         // The dest already exists. Deal with it
-        if (opts.backup) {
-          const bakDest: FilePath = destFile + '~';
-          await fsDest.moveTo(bakDest, { overwrite: true });
-          bGoAhead = true;
-        } else if (opts.index) {
-          const limit = isBoolean(opts.index) ? 10 : asInt(opts.index);
-          let newFsDest: FSUtil;
-          let count = 0;
-          let looking = true;
-          while (looking) {
-            newFsDest = fsutil(fsDest.dirname, fsDest.basename + '-' + pad(++count, 2) + fsDest.extname);
-            looking = await newFsDest.exists();
-          }
-          // @ts-ignore
-          if (!looking && newFsDest) {
-            await fsDest.moveTo(newFsDest, { overwrite: true });
-            bGoAhead = true;
-          } else {
-            if (opts.errorOnExist) {
-              throw this.newError('EEXIST', 'File exists');
-            }
-          }
-        } else if (!opts.overwrite) {
-          if (opts.errorOnExist) {
-            throw this.newError('EEXIST', 'File exists');
-          }
-        }
+        bGoAhead = await fsDest.backup(opts);
       }
 
       if (bGoAhead) {

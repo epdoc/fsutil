@@ -396,6 +396,23 @@ describe('fsutil', () => {
     expect(json2).toEqual(json);
   });
 
+  test('write utf8', async () => {
+    const sin = 'here is a line of text';
+    const DEST = './tests/data1/folder-sample/output.txt';
+    await fsutil(DEST).write(sin);
+    expect(await fsutil(DEST).isFile()).toEqual(true);
+    const s = await fsutil(DEST).readAsString();
+    expect(s).toEqual(sin);
+  });
+  test('write lines', async () => {
+    const lines = ['this', 'is', 'line 2'];
+    const DEST = './tests/data1/folder-sample/output.txt';
+    await fsutil(DEST).write(lines);
+    expect(await fsutil(DEST).isFile()).toEqual(true);
+    const s = await fsutil(DEST).readAsString();
+    expect(s).toEqual(lines.join('\n'));
+  });
+
   test('readAsString', async () => {
     const SRC = './tests/data/sample.txt';
     const result = 'This is sample.txt. \nDo not edit or move this file.\n';
