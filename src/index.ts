@@ -28,7 +28,8 @@ const REG = {
   pdf: /\.pdf$/i,
   xml: /\.xml$/i,
   json: /\.json$/i,
-  txt: /\.txt$/i
+  txt: /\.txt$/i,
+  leadingDot: new RegExp(/^\./)
 };
 
 export type FilePath = string;
@@ -251,9 +252,11 @@ export class FSUtil {
   }
 
   setExt(ext: string): this {
-    const e = this.extname;
-    if (ext !== e) {
-      this.f = path.format({ ...path.parse(this.f), base: '', ext: '.' + ext });
+    if (!REG.leadingDot.test(ext)) {
+      ext = '.' + ext;
+    }
+    if (ext !== this.extname) {
+      this.f = path.format({ ...path.parse(this.f), base: '', ext: ext });
     }
     return this;
   }

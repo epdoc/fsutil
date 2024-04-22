@@ -203,6 +203,17 @@ describe('fsutil', () => {
         throw err;
       });
   }, 1000);
+  it('ext', () => {
+    const fs = fsutil('./tests/xxx.jpg');
+    fs.setExt('.txt');
+    expect(fs.extname).toEqual('.txt');
+    fs.setExt('pdf');
+    expect(fs.extname).toEqual('.pdf');
+    fs.setExt('jpg');
+    expect(fs.extname).toEqual('.jpg');
+    fs.setExt('.jpg');
+    expect(fs.extname).toEqual('.jpg');
+  }, 1000);
   it('checksum', () => {
     return Promise.resolve()
       .then((resp) => {
