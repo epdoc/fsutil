@@ -68,11 +68,12 @@ export type SafeCopyOpts = Partial<{
   test: boolean;
 }>;
 
+export type FSUtilCallback = (fs: FSUtil) => Promise<any>;
+
 export type GetChildrenOpts = {
-  files: boolean;
-  folders: boolean;
   match: RegExp | string | undefined;
-  recursive: Integer;
+  levels: Integer;
+  callback?: FSUtilCallback;
 };
 
 export function fsutil(...args: FSUtil[] | FilePath[] | FolderPath[]): FSUtil {
@@ -396,7 +397,7 @@ export class FSUtil {
    * @param regex (optional) Use to constrain results
    */
   async getFiles(regex?: RegExp): Promise<FileName[]> {
-    return this.getChildren({ files: true, match: regex }).then(() => {
+    return this.getChildren({ match: regex }).then(() => {
       const paths = this._files.map((fs) => {
         return fs.filename;
       });
@@ -410,7 +411,7 @@ export class FSUtil {
    * @param regex (optional) Use to constrain results
    */
   async getFolders(regex?: RegExp): Promise<FolderPath[]> {
-    return this.getChildren({ folders: true, match: regex }).then(() => {
+    return this.getChildren({ match: regex }).then(() => {
       const paths = this._folders.map((fs) => {
         return fs.path;
       });
@@ -423,19 +424,14 @@ export class FSUtil {
    * @param opts.match File or folder names must match this string or RegExp. If
    * not specified then file and folder names are not filtered.
    */
-  async getChildren(options: Partial<GetChildrenOpts> = { folders: true, files: true, recursive: 1 }): Promise<this> {
+  async getChildren(options: Partial<GetChildrenOpts> = { levels: 1 }): Promise<this> {
     const opts: GetChildrenOpts = {
-      folders: options.folders || (!options.folders && !options.files),
-      files: options.files || (!options.folders && !options.files),
       match: options.match,
-      recursive: isNumber(options.recursive) ? options.recursive - 1 : 0
+      levels: isNumber(options.levels) ? options.levels - 1 : 0,
+      callback: options.callback
     };
-    if (opts.folders) {
-      this._folders = [];
-    }
-    if (opts.files) {
-      this._files = [];
-    }
+    this._folders = [];
+    this._files = [];
     return fs.promises
       .readdir(this.f)
       .then((entries) => {
@@ -454,13 +450,17 @@ export class FSUtil {
           }
           if (bMatch) {
             const job = fs.getStats().then((stat: FSStats) => {
-              if (opts.folders && stat.isDirectory()) {
+              if (opts.callback) {
+                const job1 = opts.callback(fs);
+                jobs.push(job1);
+              }
+              if (stat.isDirectory()) {
                 this._folders.push(fs);
-                if (opts.recursive > 0) {
+                if (opts.levels > 0) {
                   const job2 = fs.getChildren(opts);
                   jobs.push(job2);
                 }
-              } else if (opts.files && stat.isFile()) {
+              } else if (stat.isFile()) {
                 this._files.push(fs);
               }
             });

@@ -52,7 +52,7 @@ describe('fsutil', () => {
         expect(resp.length).toBe(1);
         resp = resp.sort();
         expect(resp[0]).toMatch(/fs\.test\.ts$/);
-        return fsutil('./tests').getChildren({ files: true });
+        return fsutil('./tests').getChildren();
       })
       .then((resp) => {
         expect(isArray(resp.files)).toBe(true);
