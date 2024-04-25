@@ -6,12 +6,14 @@ import {
   Dict,
   Integer,
   asInt,
+  compareDictValue,
   deepCopy,
   deepCopySetDefaultOpts,
   isBoolean,
   isError,
   isNonEmptyArray,
   isNonEmptyString,
+  isNumber,
   isObject,
   isRegExp,
   isString,
@@ -66,6 +68,13 @@ export type SafeCopyOpts = Partial<{
   test: boolean;
 }>;
 
+export type GetChildrenOpts = {
+  files: boolean;
+  folders: boolean;
+  match: RegExp | string | undefined;
+  recursive: Integer;
+};
+
 export function fsutil(...args: FSUtil[] | FilePath[] | FolderPath[]): FSUtil {
   return new FSUtil(...args);
 }
@@ -82,6 +91,15 @@ export class FSStats {
 
   static isInstance(val: any): val is FSStats {
     return val && val._isFSStats === true;
+  }
+
+  isInitialized(): boolean {
+    return this._stats ? true : false;
+  }
+
+  clear(): this {
+    this._stats = undefined;
+    return this;
   }
 
   exists(): boolean {
@@ -110,6 +128,16 @@ export class FSStats {
       return new Date(this._stats.birthtime || this._stats.mtime);
     }
   }
+
+  modifiedAt(): Date | undefined {
+    if (this._stats) {
+      return new Date(this._stats.mtime);
+    }
+  }
+
+  get size(): Integer {
+    return this._stats ? this._stats.size : -1;
+  }
 }
 
 export class FSUtil {
@@ -117,7 +145,9 @@ export class FSUtil {
   // @ts-ignore
   protected f: FilePath | FolderPath;
   // @ts-ignore
-  protected _stats: FSStats;
+  protected _stats: FSStats = new FSStats();
+  protected _folders: FSUtil[] = [];
+  protected _files: FSUtil[] = [];
   protected _args: (FilePath | FolderPath)[] = [];
 
   constructor(...args: FSUtil[] | FilePath[] | FolderPath[]) {
@@ -221,6 +251,14 @@ export class FSUtil {
     return path.basename(this.f);
   }
 
+  get files(): FSUtil[] {
+    return this._files;
+  }
+
+  get folders(): FSUtil[] {
+    return this._folders;
+  }
+
   isType(...type: (RegExp | string)[]): boolean {
     const lowerCaseExt = this.extname.toLowerCase().replace(/^\./, '');
     for (const entry of type) {
@@ -257,8 +295,66 @@ export class FSUtil {
     }
     if (ext !== this.extname) {
       this.f = path.format({ ...path.parse(this.f), base: '', ext: ext });
+      this._stats.clear();
     }
     return this;
+  }
+
+  public getStats(force = false): Promise<FSStats> {
+    if (force || !this._stats.isInitialized()) {
+      return fs.promises
+        .stat(this.f)
+        .then((resp: fs.Stats) => {
+          this._stats = new FSStats(resp);
+          return Promise.resolve(this._stats);
+        })
+        .catch((err) => {
+          this._stats = new FSStats();
+          return Promise.resolve(this._stats);
+        });
+    } else {
+      return Promise.resolve(this._stats);
+    }
+  }
+
+  get stats(): FSStats {
+    return this._stats;
+  }
+
+  async isDir(): Promise<boolean> {
+    return this.getStats().then((resp) => {
+      return this._stats.isDirectory();
+    });
+  }
+
+  async isFile(): Promise<boolean> {
+    return this.getStats().then((resp) => {
+      return this._stats.isFile();
+    });
+  }
+
+  async exists(): Promise<boolean> {
+    return this.getStats().then((resp) => {
+      return this._stats.isDirectory() || this._stats.isFile();
+    });
+  }
+
+  async dirExists(): Promise<boolean> {
+    return this.getStats().then((resp) => {
+      return this._stats.isDirectory();
+    });
+  }
+
+  async fileExists(): Promise<boolean> {
+    return this.getStats().then((resp) => {
+      return this._stats.isFile();
+    });
+  }
+
+  async createdAt(): Promise<Date | undefined> {
+    return this.getStats().then((resp) => {
+      return this._stats.createdAt();
+    });
   }
 
   isNamed(name: string): boolean {
@@ -299,28 +395,13 @@ export class FSUtil {
    * the full path.
    * @param regex (optional) Use to constrain results
    */
-  async getFiles(regex?: RegExp): Promise<FolderPath[]> {
-    const results: FolderPath[] = [];
-    return fs.promises
-      .readdir(this.f)
-      .then((entries) => {
-        const jobs = [];
-        for (const entry of entries) {
-          const fullPath: FolderPath = path.resolve(this.f, entry);
-          const job = fsutil(fullPath)
-            .isFile()
-            .then((bIsFile) => {
-              if (bIsFile && (!regex || regex.test(entry))) {
-                results.push(entry);
-              }
-            });
-          jobs.push(job);
-        }
-        return Promise.all(jobs);
-      })
-      .then((resp) => {
-        return Promise.resolve(results);
+  async getFiles(regex?: RegExp): Promise<FileName[]> {
+    return this.getChildren({ files: true, match: regex }).then(() => {
+      const paths = this._files.map((fs) => {
+        return fs.filename;
       });
+      return Promise.resolve(paths);
+    });
   }
 
   /**
@@ -329,27 +410,105 @@ export class FSUtil {
    * @param regex (optional) Use to constrain results
    */
   async getFolders(regex?: RegExp): Promise<FolderPath[]> {
-    const results: FolderPath[] = [];
+    return this.getChildren({ folders: true, match: regex }).then(() => {
+      const paths = this._folders.map((fs) => {
+        return fs.path;
+      });
+      return Promise.resolve(paths);
+    });
+  }
+
+  /**
+   * Build the list of matching files and folders in the folder.
+   * @param opts.match File or folder names must match this string or RegExp. If
+   * not specified then file and folder names are not filtered.
+   */
+  async getChildren(options: Partial<GetChildrenOpts> = { folders: true, files: true, recursive: 1 }): Promise<this> {
+    const opts: GetChildrenOpts = {
+      folders: options.folders || (!options.folders && !options.files),
+      files: options.files || (!options.folders && !options.files),
+      match: options.match,
+      recursive: isNumber(options.recursive) ? options.recursive - 1 : 0
+    };
+    if (opts.folders) {
+      this._folders = [];
+    }
+    if (opts.files) {
+      this._files = [];
+    }
     return fs.promises
       .readdir(this.f)
       .then((entries) => {
         const jobs = [];
         for (const entry of entries) {
-          const fullPath: FolderPath = path.resolve(this.f, entry);
-          const job = fsutil(fullPath)
-            .isDir()
-            .then((bIsDir) => {
-              if (bIsDir && (!regex || regex.test(entry))) {
-                results.push(entry);
+          const fs = fsutil(this.f, entry);
+          let bMatch = false;
+          if (opts.match) {
+            if (isString(opts.match) && entry === opts.match) {
+              bMatch = true;
+            } else if (isRegExp(opts.match) && opts.match.test(entry)) {
+              bMatch = true;
+            }
+          } else {
+            bMatch = true;
+          }
+          if (bMatch) {
+            const job = fs.getStats().then((stat: FSStats) => {
+              if (opts.folders && stat.isDirectory()) {
+                this._folders.push(fs);
+                if (opts.recursive > 0) {
+                  const job2 = fs.getChildren(opts);
+                  jobs.push(job2);
+                }
+              } else if (opts.files && stat.isFile()) {
+                this._files.push(fs);
               }
             });
-          jobs.push(job);
+            jobs.push(job);
+          }
         }
         return Promise.all(jobs);
       })
       .then((resp) => {
-        return Promise.resolve(results);
+        return Promise.resolve(this);
       });
+  }
+
+  public sortFolders(): this {
+    this.folders.sort((a, b) => {
+      return compareDictValue(a, b, 'filename');
+    });
+    return this;
+  }
+
+  public sortFiles(): this {
+    this.folders.sort((a, b) => {
+      return compareDictValue(a, b, 'filename');
+    });
+    return this;
+  }
+  public sortFilesBySize(): this {
+    this.folders.sort((a, b) => {
+      return compareDictValue(a, b, 'size');
+    });
+    return this;
+  }
+
+  /**
+   * Calculate the checksum of a file
+   * @param file
+   */
+  async checksum() {
+    return new Promise((resolve, reject) => {
+      // @ts-ignore
+      checksum.file(this.f, (err, sum) => {
+        if (err) {
+          reject(this.newError(err));
+        } else {
+          resolve(sum);
+        }
+      });
+    });
   }
 
   /**
@@ -372,23 +531,6 @@ export class FSUtil {
         reject(this.newError(errMsg));
       });
       pdfParser.loadPDF(this.f);
-    });
-  }
-
-  /**
-   * Calculate the checksum of a file
-   * @param file
-   */
-  async checksum() {
-    return new Promise((resolve, reject) => {
-      // @ts-ignore
-      checksum.file(this.f, (err, sum) => {
-        if (err) {
-          reject(this.newError(err));
-        } else {
-          resolve(sum);
-        }
-      });
     });
   }
 
@@ -507,62 +649,13 @@ export class FSUtil {
     return fs.promises.writeFile(this.f, buf);
   }
 
-  async isDir(): Promise<boolean> {
-    return this.stats().then((resp) => {
-      return this._stats.isDirectory();
-    });
-  }
-
-  async isFile(): Promise<boolean> {
-    return this.stats().then((resp) => {
-      return this._stats.isFile();
-    });
-  }
-
-  async exists(): Promise<boolean> {
-    return this.stats().then((resp) => {
-      return this._stats.isDirectory() || this._stats.isFile();
-    });
-  }
-
-  async dirExists(): Promise<boolean> {
-    return this.stats().then((resp) => {
-      return this._stats.isDirectory();
-    });
-  }
-
-  async fileExists(): Promise<boolean> {
-    return this.stats().then((resp) => {
-      return this._stats.isFile();
-    });
-  }
-
-  async stats(): Promise<FSStats> {
-    return fs.promises
-      .stat(this.f)
-      .then((resp: fs.Stats) => {
-        this._stats = new FSStats(resp);
-        return Promise.resolve(this._stats);
-      })
-      .catch((err) => {
-        this._stats = new FSStats();
-        return Promise.resolve(this._stats);
-      });
-  }
-
-  async createdAt(p: FilePath): Promise<Date | undefined> {
-    return this.stats().then((resp) => {
-      return this._stats.createdAt();
-    });
-  }
-
   /**
    * Backup the file
    * @param opts
    * @returns Path to file if file was backed up, or true if the file doesn't exist
    */
   async backup(opts: SafeCopyOpts = {}): Promise<FilePath | boolean> {
-    await this.stats();
+    await this.getStats();
 
     if (this._stats && this._stats.exists()) {
       // this file already exists. Deal with it by renaming it.
@@ -614,11 +707,11 @@ export class FSUtil {
    * @returns True if file was copied or moved, false otherwise
    */
   async safeCopy(destFile: FilePath | FSUtil, opts: SafeCopyOpts = {}): Promise<boolean | undefined> {
-    await this.stats();
+    await this.getStats();
 
     if (this._stats && this._stats.exists()) {
       const fsDest = FSUtil.isInstance(destFile) ? destFile : fsutil(destFile);
-      await fsDest.stats();
+      await fsDest.getStats();
 
       let bGoAhead: FilePath | boolean = true;
       if (fsDest._stats.exists()) {

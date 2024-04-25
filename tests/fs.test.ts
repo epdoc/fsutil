@@ -52,6 +52,30 @@ describe('fsutil', () => {
         expect(resp.length).toBe(1);
         resp = resp.sort();
         expect(resp[0]).toMatch(/fs\.test\.ts$/);
+        return fsutil('./tests').getChildren({ files: true });
+      })
+      .then((resp) => {
+        expect(isArray(resp.files)).toBe(true);
+        expect(resp.files.length).toBe(1);
+        resp = resp.sortFiles();
+        expect(resp.files[0].filename).toMatch(/fs\.test\.ts$/);
+      });
+  });
+  test('getChildren', () => {
+    return fsutil('.')
+      .getChildren()
+      .then((resp) => {
+        expect(isArray(resp.files)).toBe(true);
+        expect(isArray(resp.folders)).toBe(true);
+        return fsutil('./tests').getChildren();
+      })
+      .then((resp) => {
+        expect(isArray(resp.files)).toBe(true);
+        expect(isArray(resp.folders)).toBe(true);
+        expect(resp.files.length).toBe(1);
+        expect(resp.folders.length).toBe(2);
+        resp = resp.sortFolders();
+        expect(resp.folders[0].filename).toMatch('data');
       });
   });
   test('setExt', () => {
@@ -120,7 +144,7 @@ describe('fsutil', () => {
   test('fs Stats', () => {
     return Promise.resolve()
       .then((resp) => {
-        return fsutil('./tests').stats();
+        return fsutil('./tests').getStats();
       })
       .then((stats) => {
         expect(FSStats.isInstance(stats)).toBe(true);
@@ -128,6 +152,7 @@ describe('fsutil', () => {
         expect(stats.isDirectory()).toBe(true);
         expect(stats.isFile()).toBe(false);
         expect(isValidDate(stats.createdAt())).toBe(true);
+        expect(stats.size).toBe(160);
       });
   });
   test('constructor with .folder', () => {
