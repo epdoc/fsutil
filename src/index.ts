@@ -22,6 +22,7 @@ import {
 import checksum from 'checksum';
 import * as fx from 'fs-extra';
 import fs from 'node:fs';
+import { readFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import Pdfparser from 'pdf2json';
@@ -558,6 +559,12 @@ export class FSUtil {
           resolve(false);
         }
       });
+    });
+  }
+
+  async readAsBuffer(): Promise<Buffer> {
+    return readFile(this.f).catch((err) => {
+      throw this.newError(err);
     });
   }
 
