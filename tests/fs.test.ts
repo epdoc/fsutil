@@ -2,35 +2,35 @@ import { isDate, isValidDate } from '@epdoc/typeutil';
 import { isArray } from 'epdoc-util';
 import os from 'node:os';
 import path from 'node:path';
-import { FSStats, FSUtil, SafeCopyOpts, fsutil, isFilePath, isFilename, isFolderPath } from './../src/index';
+import { FSItem, FSStats, SafeCopyOpts, fsitem, isFilePath, isFilename, isFolderPath } from './../src/index';
 
 const HOME = os.userInfo().homedir;
 
-describe('fsutil', () => {
+describe('fsitem', () => {
   beforeEach(async () => {
-    await fsutil('./tests/data').copyTo('./tests/data1');
-    await fsutil('./tests/data2').remove();
-    await fsutil('./tests/data2-01').remove();
-    await fsutil('./tests/data2-02').remove();
-    await fsutil('./tests/data2-03').remove();
-    await fsutil('./tests/data3').remove();
+    await fsitem('./tests/data').copyTo('./tests/data1');
+    await fsitem('./tests/data2').remove();
+    await fsitem('./tests/data2-01').remove();
+    await fsitem('./tests/data2-02').remove();
+    await fsitem('./tests/data2-03').remove();
+    await fsitem('./tests/data3').remove();
   });
 
   afterAll(async () => {
-    await fsutil('./tests/data1').remove();
-    await fsutil('./tests/data2').remove();
-    await fsutil('./tests/data2-01').remove();
-    await fsutil('./tests/data2-02').remove();
-    await fsutil('./tests/data2-03').remove();
-    await fsutil('./tests/data3').remove();
+    await fsitem('./tests/data1').remove();
+    await fsitem('./tests/data2').remove();
+    await fsitem('./tests/data2-01').remove();
+    await fsitem('./tests/data2-02').remove();
+    await fsitem('./tests/data2-03').remove();
+    await fsitem('./tests/data3').remove();
   });
 
   test('fsGetFolders', () => {
-    return fsutil('.')
+    return fsitem('.')
       .getFolders()
       .then((resp) => {
         expect(isArray(resp)).toBe(true);
-        return fsutil('./tests').getFolders();
+        return fsitem('./tests').getFolders();
       })
       .then((resp) => {
         expect(isArray(resp)).toBe(true);
@@ -41,18 +41,18 @@ describe('fsutil', () => {
       });
   });
   test('fsGetFiles', () => {
-    return fsutil('.')
+    return fsitem('.')
       .getFolders()
       .then((resp) => {
         expect(isArray(resp)).toBe(true);
-        return fsutil('./tests').getFiles();
+        return fsitem('./tests').getFiles();
       })
       .then((resp) => {
         expect(isArray(resp)).toBe(true);
         expect(resp.length).toBe(1);
         resp = resp.sort();
         expect(resp[0]).toMatch(/fs\.test\.ts$/);
-        return fsutil('./tests').getChildren();
+        return fsitem('./tests').getChildren();
       })
       .then((resp) => {
         expect(isArray(resp.files)).toBe(true);
@@ -62,12 +62,12 @@ describe('fsutil', () => {
       });
   });
   test('getChildren', () => {
-    return fsutil('.')
+    return fsitem('.')
       .getChildren()
       .then((resp) => {
         expect(isArray(resp.files)).toBe(true);
         expect(isArray(resp.folders)).toBe(true);
-        return fsutil('./tests').getChildren();
+        return fsitem('./tests').getChildren();
       })
       .then((resp) => {
         expect(isArray(resp.files)).toBe(true);
@@ -81,18 +81,18 @@ describe('fsutil', () => {
   test('setExt', () => {
     const PATH = './mypath/to/file/sample.json';
     const EXPECTED = './mypath/to/file/sample.rsc';
-    const fs = fsutil(PATH);
+    const fs = fsitem(PATH);
     expect(fs.setExt('txt').extname).toEqual('.txt');
     expect(fs.setExt('rsc').path).toEqual(EXPECTED);
   });
   test('isDir', () => {
     return Promise.resolve()
       .then((resp) => {
-        return fsutil('./tests').isDir();
+        return fsitem('./tests').isDir();
       })
       .then((resp) => {
         expect(resp).toBe(true);
-        return fsutil('./tests/data1').isDir();
+        return fsitem('./tests/data1').isDir();
       })
       .then((resp) => {
         expect(resp).toBe(true);
@@ -101,11 +101,11 @@ describe('fsutil', () => {
   test('fsExists', () => {
     return Promise.resolve()
       .then((resp) => {
-        return fsutil('./tests').exists();
+        return fsitem('./tests').exists();
       })
       .then((resp) => {
         expect(resp).toBe(true);
-        return fsutil('./tests/data1').exists();
+        return fsitem('./tests/data1').exists();
       })
       .then((resp) => {
         expect(resp).toBe(true);
@@ -114,11 +114,11 @@ describe('fsutil', () => {
   test('fs dirExists', () => {
     return Promise.resolve()
       .then((resp) => {
-        return fsutil('./tests').dirExists();
+        return fsitem('./tests').dirExists();
       })
       .then((resp) => {
         expect(resp).toBe(true);
-        return fsutil('./tests/data1').dirExists();
+        return fsitem('./tests/data1').dirExists();
       })
       .then((resp) => {
         expect(resp).toBe(true);
@@ -127,15 +127,15 @@ describe('fsutil', () => {
   test('fs fileExists', () => {
     return Promise.resolve()
       .then((resp) => {
-        return fsutil('./tests').fileExists();
+        return fsitem('./tests').fileExists();
       })
       .then((resp) => {
         expect(resp).toBe(false);
-        return fsutil('./tests/data1').fileExists();
+        return fsitem('./tests/data1').fileExists();
       })
       .then((resp) => {
         expect(resp).toBe(false);
-        return fsutil('./tests/data1/sample.txt').fileExists();
+        return fsitem('./tests/data1/sample.txt').fileExists();
       })
       .then((resp) => {
         expect(resp).toBe(true);
@@ -144,7 +144,7 @@ describe('fsutil', () => {
   test('fs Stats', () => {
     return Promise.resolve()
       .then((resp) => {
-        return fsutil('./tests').getStats();
+        return fsitem('./tests').getStats();
       })
       .then((stats) => {
         expect(FSStats.isInstance(stats)).toBe(true);
@@ -158,26 +158,26 @@ describe('fsutil', () => {
   test('constructor with .folder', () => {
     return Promise.resolve()
       .then((resp) => {
-        return fsutil('./tests').dirExists();
+        return fsitem('./tests').dirExists();
       })
       .then((resp) => {
         expect(resp).toBe(true);
-        return fsutil('./tests/data/.withdot').dirExists();
+        return fsitem('./tests/data/.withdot').dirExists();
       })
       .then((resp) => {
         expect(resp).toBe(true);
-        return fsutil('./tests/data/.withdot/dotsample.json').fileExists();
+        return fsitem('./tests/data/.withdot/dotsample.json').fileExists();
       })
       .then((resp) => {
         expect(resp).toBe(true);
       });
   });
   it('constructor', () => {
-    expect(fsutil('home', 'file.json').basename).toBe('file');
-    expect(fsutil('/home', 'file.json').path).toBe('/home/file.json');
+    expect(fsitem('home', 'file.json').basename).toBe('file');
+    expect(fsitem('/home', 'file.json').path).toBe('/home/file.json');
   }, 1000);
   it('constructor with HOME', () => {
-    const fs = new FSUtil().home().add('.folder').add('file.txt');
+    const fs = new FSItem().home().add('.folder').add('file.txt');
     expect(fs.path).toBe(path.resolve(HOME, '.folder', 'file.txt'));
     expect(fs.filename).toBe('file.txt');
     expect(fs.parts[0]).toEqual(HOME);
@@ -191,30 +191,30 @@ describe('fsutil', () => {
     expect(isFolderPath('~/xx/hello')).toBe(true);
   }, 1000);
   it('isType', () => {
-    expect(fsutil('file.json').isType('json')).toBe(true);
-    expect(fsutil('file.json').isType('jsson')).toBe(false);
-    expect(fsutil('file.JSON').isType('jsson', 'json')).toBe(true);
-    expect(fsutil('file.txt').isType('jsson', 'JSON')).toBe(false);
-    expect(fsutil('file.json').isType('jsson', 'JSON')).toBe(true);
-    expect(fsutil('file.json').isType(/^json$/)).toBe(true);
-    expect(fsutil('file.json').isType(/^JSON$/)).toBe(false);
-    expect(fsutil('file.json').isType(/^JSON$/i)).toBe(true);
-    expect(fsutil('file.json').isJson()).toBe(true);
-    expect(fsutil('file.JSON').isJson()).toBe(true);
-    expect(fsutil('file.JSON').isPdf()).toBe(false);
-    expect(fsutil('file.JSON').isTxt()).toBe(false);
-    expect(fsutil('file.JSON').isXml()).toBe(false);
-    expect(fsutil('file.PDF').isPdf()).toBe(true);
-    expect(fsutil('file.pdf').isPdf()).toBe(true);
-    expect(fsutil('file.xml').isXml()).toBe(true);
-    expect(fsutil('file.TXT').isTxt()).toBe(true);
-    expect(fsutil('file.TXT').isNamed('file')).toBe(true);
-    expect(fsutil('file.TXT').isNamed('TXT')).toBe(false);
+    expect(fsitem('file.json').isType('json')).toBe(true);
+    expect(fsitem('file.json').isType('jsson')).toBe(false);
+    expect(fsitem('file.JSON').isType('jsson', 'json')).toBe(true);
+    expect(fsitem('file.txt').isType('jsson', 'JSON')).toBe(false);
+    expect(fsitem('file.json').isType('jsson', 'JSON')).toBe(true);
+    expect(fsitem('file.json').isType(/^json$/)).toBe(true);
+    expect(fsitem('file.json').isType(/^JSON$/)).toBe(false);
+    expect(fsitem('file.json').isType(/^JSON$/i)).toBe(true);
+    expect(fsitem('file.json').isJson()).toBe(true);
+    expect(fsitem('file.JSON').isJson()).toBe(true);
+    expect(fsitem('file.JSON').isPdf()).toBe(false);
+    expect(fsitem('file.JSON').isTxt()).toBe(false);
+    expect(fsitem('file.JSON').isXml()).toBe(false);
+    expect(fsitem('file.PDF').isPdf()).toBe(true);
+    expect(fsitem('file.pdf').isPdf()).toBe(true);
+    expect(fsitem('file.xml').isXml()).toBe(true);
+    expect(fsitem('file.TXT').isTxt()).toBe(true);
+    expect(fsitem('file.TXT').isNamed('file')).toBe(true);
+    expect(fsitem('file.TXT').isNamed('TXT')).toBe(false);
   }, 1000);
   it('getPdfDate', () => {
     return Promise.resolve()
       .then((resp) => {
-        return fsutil('./tests', 'data', '.withdot/text alignment.pdf').getPdfDate();
+        return fsitem('./tests', 'data', '.withdot/text alignment.pdf').getPdfDate();
       })
       .then((resp) => {
         expect(isValidDate(resp)).toBe(true);
@@ -229,7 +229,7 @@ describe('fsutil', () => {
       });
   }, 1000);
   it('ext', () => {
-    const fs = fsutil('./tests/xxx.jpg');
+    const fs = fsitem('./tests/xxx.jpg');
     fs.setExt('.txt');
     expect(fs.extname).toEqual('.txt');
     fs.setExt('pdf');
@@ -242,14 +242,14 @@ describe('fsutil', () => {
   it('checksum', () => {
     return Promise.resolve()
       .then((resp) => {
-        return fsutil('./tests/data1/sample.txt').checksum();
+        return fsitem('./tests/data1/sample.txt').checksum();
       })
       .then((resp) => {
         expect(resp).toBe('cacc6f06ae07f842663cb1b1722cafbee9b4d203');
       });
   }, 1000);
   it('newError string', () => {
-    const fs = new FSUtil('my/path/to/file.txt');
+    const fs = new FSItem('my/path/to/file.txt');
     const err = fs.newError(23, 'my message');
     // @ts-ignore
     expect(err.code).toEqual(23);
@@ -258,7 +258,7 @@ describe('fsutil', () => {
     expect(fs.parts[0]).toEqual('my/path/to/file.txt');
   });
   it('newError Error', () => {
-    const fs = new FSUtil('my/path/to', 'file.txt');
+    const fs = new FSItem('my/path/to', 'file.txt');
     const err0 = new Error('hello');
     const err = fs.newError(err0);
     // @ts-ignore
@@ -272,83 +272,83 @@ describe('fsutil', () => {
   test('fsEqual', () => {
     return Promise.resolve()
       .then((resp) => {
-        return fsutil('./tests/fs.test.ts').filesEqual('./tests/fs.test.ts');
+        return fsitem('./tests/fs.test.ts').filesEqual('./tests/fs.test.ts');
       })
       .then((resp) => {
         expect(resp).toBe(true);
-        return fsutil('./tests/fs.test.ts').filesEqual('./tests/data1/sample.txt');
+        return fsitem('./tests/fs.test.ts').filesEqual('./tests/data1/sample.txt');
       })
       .then((resp) => {
         expect(resp).toBe(false);
-        return fsutil('./tests/data1/sample.txt').filesEqual('./tests');
-      })
-      .then((resp) => {
-        expect(resp).toBe(false);
-      });
-  });
-  test('fsEnsureDir fsutil.Remove', () => {
-    return Promise.resolve()
-      .then((resp) => {
-        return fsutil('./tests').ensureDir();
-      })
-      .then((resp) => {
-        return fsutil('./tests/data1/tmp1').ensureDir();
-      })
-      .then((resp) => {
-        return fsutil('./tests/data1/tmp1').isDir();
-      })
-      .then((resp) => {
-        expect(resp).toBe(true);
-        return fsutil('./tests/data1/tmp1').remove();
-      })
-      .then((resp) => {
-        expect(resp).toBeUndefined();
-        return fsutil('./tests/data1/tmp1').isDir();
+        return fsitem('./tests/data1/sample.txt').filesEqual('./tests');
       })
       .then((resp) => {
         expect(resp).toBe(false);
       });
   });
-  test('fsCopy fsutil.Move', () => {
+  test('fsEnsureDir fsitem.Remove', () => {
     return Promise.resolve()
       .then((resp) => {
-        return fsutil('./tests/data1').copyTo('./tests/data2', { preserveTimestamps: true });
+        return fsitem('./tests').ensureDir();
       })
       .then((resp) => {
-        expect(resp).toBeUndefined();
-        return fsutil('./tests/data2').isDir();
+        return fsitem('./tests/data1/tmp1').ensureDir();
       })
       .then((resp) => {
-        expect(resp).toEqual(true);
-        return fsutil('./tests/data2/folder-sample').isDir();
-      })
-      .then((resp) => {
-        expect(resp).toEqual(true);
-        return fsutil('./tests/data2/folder-sample/sample2.txt').isFile();
-      })
-      .then((resp) => {
-        expect(resp).toEqual(true);
-        return fsutil('./tests/data2/folder-sample/sample2.txt').filesEqual('./tests/data1/folder-sample/sample2.txt');
+        return fsitem('./tests/data1/tmp1').isDir();
       })
       .then((resp) => {
         expect(resp).toBe(true);
-        return fsutil('./tests/data2').moveTo('./tests/data3');
+        return fsitem('./tests/data1/tmp1').remove();
       })
       .then((resp) => {
         expect(resp).toBeUndefined();
-        return fsutil('./tests/data2').isDir();
+        return fsitem('./tests/data1/tmp1').isDir();
+      })
+      .then((resp) => {
+        expect(resp).toBe(false);
+      });
+  });
+  test('fsCopy fsitem.Move', () => {
+    return Promise.resolve()
+      .then((resp) => {
+        return fsitem('./tests/data1').copyTo('./tests/data2', { preserveTimestamps: true });
+      })
+      .then((resp) => {
+        expect(resp).toBeUndefined();
+        return fsitem('./tests/data2').isDir();
+      })
+      .then((resp) => {
+        expect(resp).toEqual(true);
+        return fsitem('./tests/data2/folder-sample').isDir();
+      })
+      .then((resp) => {
+        expect(resp).toEqual(true);
+        return fsitem('./tests/data2/folder-sample/sample2.txt').isFile();
+      })
+      .then((resp) => {
+        expect(resp).toEqual(true);
+        return fsitem('./tests/data2/folder-sample/sample2.txt').filesEqual('./tests/data1/folder-sample/sample2.txt');
+      })
+      .then((resp) => {
+        expect(resp).toBe(true);
+        return fsitem('./tests/data2').moveTo('./tests/data3');
+      })
+      .then((resp) => {
+        expect(resp).toBeUndefined();
+        return fsitem('./tests/data2').isDir();
       })
       .then((resp) => {
         expect(resp).toEqual(false);
-        return fsutil('./tests/data3').isDir();
+        return fsitem('./tests/data3').isDir();
       })
       .then((resp) => {
         expect(resp).toEqual(true);
-        return fsutil('./tests/data3').remove();
+        return fsitem('./tests/data3').remove();
       })
       .then((resp) => {
         expect(resp).toBeUndefined();
-        return fsutil('./tests/data3').isDir();
+        return fsitem('./tests/data3').isDir();
       })
       .then((resp) => {
         expect(resp).toBe(false);
@@ -361,23 +361,23 @@ describe('fsutil', () => {
         const opts: SafeCopyOpts = {
           ensureDir: true
         };
-        return fsutil('./tests/data1').safeCopy('./tests/data2', opts);
+        return fsitem('./tests/data1').safeCopy('./tests/data2', opts);
       })
       .then((resp) => {
         expect(resp).toBe(true);
-        return fsutil('./tests/data2').isDir();
+        return fsitem('./tests/data2').isDir();
       })
       .then((resp) => {
         expect(resp).toEqual(true);
-        return fsutil('./tests/data2/folder-sample').isDir();
+        return fsitem('./tests/data2/folder-sample').isDir();
       })
       .then((resp) => {
         expect(resp).toEqual(true);
-        return fsutil('./tests/data2/folder-sample/sample2.txt').isFile();
+        return fsitem('./tests/data2/folder-sample/sample2.txt').isFile();
       })
       .then((resp) => {
         expect(resp).toEqual(true);
-        return fsutil('./tests/data2/folder-sample/sample2.txt').filesEqual('./tests/data1/folder-sample/sample2.txt');
+        return fsitem('./tests/data2/folder-sample/sample2.txt').filesEqual('./tests/data1/folder-sample/sample2.txt');
       })
       .then((resp) => {
         expect(resp).toBe(true);
@@ -385,15 +385,15 @@ describe('fsutil', () => {
           ensureDir: false,
           index: 5
         };
-        return fsutil('./tests/data1').safeCopy('./tests/data2', opts);
+        return fsitem('./tests/data1').safeCopy('./tests/data2', opts);
       })
       .then((resp) => {
         expect(resp).toEqual(true);
-        return fsutil('./tests/data2').isDir();
+        return fsitem('./tests/data2').isDir();
       })
       .then((resp) => {
         expect(resp).toEqual(true);
-        return fsutil('./tests/data2-01').isDir();
+        return fsitem('./tests/data2-01').isDir();
       })
       .then((resp) => {
         expect(resp).toEqual(true);
@@ -403,17 +403,17 @@ describe('fsutil', () => {
   test('json', async () => {
     const SRC = './tests/data1/folder-sample/sample.json';
     const DEST = './tests/data1/folder-sample/sample-copy.json';
-    const json = await fsutil(SRC).readJson();
-    await fsutil(DEST).writeJson(json);
-    expect(await fsutil(DEST).isFile()).toEqual(true);
-    const json2 = await fsutil(DEST).readJson();
+    const json = await fsitem(SRC).readJson();
+    await fsitem(DEST).writeJson(json);
+    expect(await fsitem(DEST).isFile()).toEqual(true);
+    const json2 = await fsitem(DEST).readJson();
     expect(json2).toEqual(json);
   });
   test('json err', async () => {
     const SRC = './tests/data/.withdot/broken.json';
     return Promise.resolve()
       .then((resp) => {
-        return fsutil(SRC).readJson();
+        return fsitem(SRC).readJson();
       })
       .then((resp) => {
         expect(true).toBe(false);
@@ -427,48 +427,48 @@ describe('fsutil', () => {
     const opts = { pre: '{{', post: '}}', includeUrl: true };
     const SRC = './tests/data1/folder-sample/sample-nested.json';
     const SRC2 = './tests/data1/folder-sample/sample-compare.json';
-    const json2 = await fsutil(SRC2).readJson();
-    const json = await fsutil(SRC).deepReadJson(opts);
+    const json2 = await fsitem(SRC2).readJson();
+    const json = await fsitem(SRC).deepReadJson(opts);
     expect(json2).toEqual(json);
   });
 
   test('write utf8', async () => {
     const sin = 'here is a line of text';
     const DEST = './tests/data1/folder-sample/output.txt';
-    await fsutil(DEST).write(sin);
-    expect(await fsutil(DEST).isFile()).toEqual(true);
-    const s = await fsutil(DEST).readAsString();
+    await fsitem(DEST).write(sin);
+    expect(await fsitem(DEST).isFile()).toEqual(true);
+    const s = await fsitem(DEST).readAsString();
     expect(s).toEqual(sin);
   });
   test('write lines', async () => {
     const lines = ['this', 'is', 'line 2'];
     const DEST = './tests/data1/folder-sample/output.txt';
-    await fsutil(DEST).write(lines);
-    expect(await fsutil(DEST).isFile()).toEqual(true);
-    const s = await fsutil(DEST).readAsString();
+    await fsitem(DEST).write(lines);
+    expect(await fsitem(DEST).isFile()).toEqual(true);
+    const s = await fsitem(DEST).readAsString();
     expect(s).toEqual(lines.join('\n'));
   });
 
   test('readAsString', async () => {
     const SRC = './tests/data/sample.txt';
     const result = 'This is sample.txt. \nDo not edit or move this file.\n';
-    const str = await fsutil(SRC).readAsString();
+    const str = await fsitem(SRC).readAsString();
     console.log(str);
     expect(str).toEqual(result);
   });
   test('path resolve', async () => {
     const SRC = './tests/data/sample.json';
     const result = 'This is sample.txt.\\nDo not edit or move this file.';
-    const fsutil = new FSUtil('/', 'the', 'path', 'goes', 'right.here.txt');
-    expect(fsutil.path).toEqual('/the/path/goes/right.here.txt');
-    expect(fsutil.dirname).toEqual('/the/path/goes');
-    expect(fsutil.extname).toEqual('.txt');
-    expect(fsutil.basename).toEqual('right.here');
-    expect(fsutil.isType('txt')).toEqual(true);
-    expect(fsutil.isTxt()).toEqual(true);
-    expect(fsutil.isJson()).toEqual(false);
-    expect(fsutil.isType('json', 'txt')).toEqual(true);
-    expect(fsutil.isType('json', 'pdf')).toEqual(false);
-    expect(fsutil.isType('txt', 'pdf')).toEqual(true);
+    const fsitem = new FSItem('/', 'the', 'path', 'goes', 'right.here.txt');
+    expect(fsitem.path).toEqual('/the/path/goes/right.here.txt');
+    expect(fsitem.dirname).toEqual('/the/path/goes');
+    expect(fsitem.extname).toEqual('.txt');
+    expect(fsitem.basename).toEqual('right.here');
+    expect(fsitem.isType('txt')).toEqual(true);
+    expect(fsitem.isTxt()).toEqual(true);
+    expect(fsitem.isJson()).toEqual(false);
+    expect(fsitem.isType('json', 'txt')).toEqual(true);
+    expect(fsitem.isType('json', 'pdf')).toEqual(false);
+    expect(fsitem.isType('txt', 'pdf')).toEqual(true);
   });
 });

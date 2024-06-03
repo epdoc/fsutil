@@ -1,4 +1,3 @@
-import { isArray } from 'epdoc-util';
 // import * as checksum from 'checksum';
 import { DateUtil } from '@epdoc/timeutil';
 import {
@@ -9,6 +8,7 @@ import {
   compareDictValue,
   deepCopy,
   deepCopySetDefaultOpts,
+  isArray,
   isBoolean,
   isError,
   isNonEmptyArray,
@@ -32,7 +32,8 @@ const REG = {
   xml: /\.xml$/i,
   json: /\.json$/i,
   txt: /\.txt$/i,
-  leadingDot: new RegExp(/^\./)
+  leadingDot: new RegExp(/^\./),
+  BOM: new RegExp(/^\uFEFF/)
 };
 
 export type FilePath = string;
@@ -69,16 +70,15 @@ export type SafeCopyOpts = Partial<{
   test: boolean;
 }>;
 
-export type FSUtilCallback = (fs: FSUtil) => Promise<any>;
-
+export type FSItemCallback = (fs: FSItem) => Promise<any>;
 export type GetChildrenOpts = {
   match: RegExp | string | undefined;
   levels: Integer;
-  callback?: FSUtilCallback;
+  callback?: FSItemCallback;
 };
 
-export function fsutil(...args: FSUtil[] | FilePath[] | FolderPath[]): FSUtil {
-  return new FSUtil(...args);
+export function fsitem(...args: FSItem[] | FilePath[] | FolderPath[]): FSItem {
+  return new FSItem(...args);
 }
 
 export class FSStats {
@@ -142,19 +142,22 @@ export class FSStats {
   }
 }
 
-export class FSUtil {
-  protected _isFSUtil = true;
+export class FSItem {
+  protected _isFSItem = true;
   // @ts-ignore
   protected f: FilePath | FolderPath;
   // @ts-ignore
   protected _stats: FSStats = new FSStats();
-  protected _folders: FSUtil[] = [];
-  protected _files: FSUtil[] = [];
+  protected _haveChildren: boolean = false;
+  // If this is a folder, contains a filtered list of folders within this folder
+  protected _folders: FSItem[] = [];
+  // If this is a folder, contains a filtered list of files within this folder
+  protected _files: FSItem[] = [];
   protected _args: (FilePath | FolderPath)[] = [];
 
-  constructor(...args: FSUtil[] | FilePath[] | FolderPath[]) {
+  constructor(...args: FSItem[] | FilePath[] | FolderPath[]) {
     if (args.length === 1) {
-      if (FSUtil.isInstance(args[0])) {
+      if (FSItem.isInstance(args[0])) {
         this.f = args[0].f;
         this._args = [args[0].f];
       } else if (isArray(args[0])) {
@@ -166,7 +169,7 @@ export class FSUtil {
       }
     } else if (args.length > 1) {
       args.forEach((arg) => {
-        if (FSUtil.isInstance(arg)) {
+        if (FSItem.isInstance(arg)) {
           throw new Error('Invalid parameter');
         }
         this._args.push(arg);
@@ -175,8 +178,8 @@ export class FSUtil {
     }
   }
 
-  static isInstance(val: any): val is FSUtil {
-    return val && val._isFSUtil === true;
+  static isInstance(val: any): val is FSItem {
+    return val && val._isFSItem === true;
   }
 
   add(...args: FilePath[] | FolderPath[]): this {
@@ -219,6 +222,7 @@ export class FSUtil {
    * Return the original parts that were used to make this.f. The value may
    * become out of sync with the actual value of this.f if too many operations
    * were performed on the path.
+   * Use with caution. This may be deprecated.
    */
   get parts(): string[] {
     return this._args;
@@ -253,14 +257,52 @@ export class FSUtil {
     return path.basename(this.f);
   }
 
-  get files(): FSUtil[] {
+  hasChildren(): boolean {
+    return this._haveChildren;
+  }
+
+  /**
+   * Get the list of FSItem files that matched a previous call to getFiles() or
+   * getChildren().
+   */
+  get files(): FSItem[] {
     return this._files;
   }
 
-  get folders(): FSUtil[] {
+  /**
+   * Get the list of filenames that matched a previous call to getFolders() or
+   * getChildren().
+   */
+  get filenames(): FileName[] {
+    return this._files.map((fs) => {
+      return fs.filename;
+    });
+  }
+
+  /**
+   * Get the list of FSItem folders that matched a previous call to getFolders() or
+   * getChildren().
+   */
+  get folders(): FSItem[] {
     return this._folders;
   }
 
+  /**
+   * Get the list of folder names that matched a previous call to getFolders() or
+   * getChildren().
+   */
+  get folderNames(): FileName[] {
+    return this._folders.map((fs) => {
+      return fs.filename;
+    });
+  }
+
+  /**
+   * Looks at the extension of the filename to determine if it is one of the
+   * listed types.
+   * @param type List of types (eg. 'jpg', 'png')
+   * @returns
+   */
   isType(...type: (RegExp | string)[]): boolean {
     const lowerCaseExt = this.extname.toLowerCase().replace(/^\./, '');
     for (const entry of type) {
@@ -376,26 +418,29 @@ export class FSUtil {
     return fx.remove(this.f);
   }
 
-  async copyTo(dest: FilePath | FSUtil, options?: fx.CopyOptions): Promise<void> {
-    const p: FilePath = FSUtil.isInstance(dest) ? dest.path : dest;
+  async copyTo(dest: FilePath | FSItem, options?: fx.CopyOptions): Promise<void> {
+    const p: FilePath = FSItem.isInstance(dest) ? dest.path : dest;
     return fx.copy(this.f, p, options);
   }
 
-  copySync(dest: FilePath | FSUtil, options?: fx.CopyOptionsSync): this {
-    const p: FilePath = FSUtil.isInstance(dest) ? dest.path : dest;
+  copySync(dest: FilePath | FSItem, options?: fx.CopyOptionsSync): this {
+    const p: FilePath = FSItem.isInstance(dest) ? dest.path : dest;
     fx.copySync(this.f, p, options);
     return this;
   }
 
-  async moveTo(dest: FilePath | FSUtil, options?: fx.MoveOptions): Promise<void> {
-    const p: FilePath = FSUtil.isInstance(dest) ? dest.path : dest;
+  async moveTo(dest: FilePath | FSItem, options?: fx.MoveOptions): Promise<void> {
+    const p: FilePath = FSItem.isInstance(dest) ? dest.path : dest;
     return fx.move(this.f, p, options);
   }
 
   /**
-   * Retrieve the list of matching files in dir. Returns just the filename, not
-   * the full path.
+   * If this is a folder, retrieves the list of matching files in this folder.
+   * Repopulates this._files and this._folders in the process. Returns just the
+   * filenames, not the full path.
    * @param regex (optional) Use to constrain results
+   * @return Array of file names
+   * @deprecated. Use getChildren() and files instead.
    */
   async getFiles(regex?: RegExp): Promise<FileName[]> {
     return this.getChildren({ match: regex }).then(() => {
@@ -407,9 +452,12 @@ export class FSUtil {
   }
 
   /**
-   * Retrieve the list of matching folders in dir. Does not return the full
-   * path.
+   * If this is a folder, retrieves the list of matching folders in this folder.
+   * Repopulates this._files and this._folders in the process. Returns just the
+   * folder names, not the full path.
    * @param regex (optional) Use to constrain results
+   * @return Array of folder names.
+   * @deprecated. Use getChildren() and folders instead.
    */
   async getFolders(regex?: RegExp): Promise<FolderPath[]> {
     return this.getChildren({ match: regex }).then(() => {
@@ -421,9 +469,10 @@ export class FSUtil {
   }
 
   /**
-   * Build the list of matching files and folders in the folder.
-   * @param opts.match File or folder names must match this string or RegExp. If
-   * not specified then file and folder names are not filtered.
+   * If this is a folder, retrieves the list of matching files and folders in
+   * this folder and stores the lists as this._files and this._folders.
+   * @param opts.match (Optional) File or folder names must match this string or
+   * RegExp. If not specified then file and folder names are not filtered.
    */
   async getChildren(options: Partial<GetChildrenOpts> = { levels: 1 }): Promise<this> {
     const opts: GetChildrenOpts = {
@@ -438,7 +487,7 @@ export class FSUtil {
       .then((entries) => {
         const jobs = [];
         for (const entry of entries) {
-          const fs = fsutil(this.f, entry);
+          const fs = fsitem(this.f, entry);
           let bMatch = false;
           if (opts.match) {
             if (isString(opts.match) && entry === opts.match) {
@@ -543,11 +592,11 @@ export class FSUtil {
   async filesEqual(path2: FilePath): Promise<boolean> {
     return new Promise((resolve, reject) => {
       const job1 = this.isFile();
-      const job2 = fsutil(path2).isFile();
+      const job2 = fsitem(path2).isFile();
       return Promise.all([job1, job2]).then((resps) => {
         if (resps && resps.length === 2 && resps[0] === true && resps[1] === true) {
           const job3 = this.checksum();
-          const job4 = new FSUtil(path2).checksum();
+          const job4 = new FSItem(path2).checksum();
           return Promise.all([job3, job4]).then((resps) => {
             if (resps && resps.length === 2 && resps[0] === resps[1]) {
               resolve(true);
@@ -574,7 +623,8 @@ export class FSUtil {
         if (err) {
           reject(this.newError(err));
         } else {
-          resolve(data.toString());
+          // Remove BOM, if present
+          resolve(data.replace(REG.BOM, '').toString());
         }
       });
     });
@@ -609,7 +659,7 @@ export class FSUtil {
     if (opts.includeUrl && isNonEmptyString(a) && urlTest.test(a)) {
       const p = a.match(urlTest);
       if (isNonEmptyArray(p) && isFilePath(p[2])) {
-        const fs = new FSUtil(this.dirname, p[2]);
+        const fs = new FSItem(this.dirname, p[2]);
         return fs.deepReadJson(opts).then((resp) => {
           return Promise.resolve(resp);
         });
@@ -671,11 +721,11 @@ export class FSUtil {
         newPath = this.path + '~';
       } else if (opts.index) {
         const limit = isBoolean(opts.index) ? 32 : asInt(opts.index);
-        let newFsDest: FSUtil;
+        let newFsDest: FSItem;
         let count = 0;
         let looking = true;
         while (looking) {
-          newFsDest = fsutil(this.dirname, this.basename + '-' + pad(++count, 2) + this.extname);
+          newFsDest = fsitem(this.dirname, this.basename + '-' + pad(++count, 2) + this.extname);
           looking = await newFsDest.exists();
         }
         // @ts-ignore
@@ -713,11 +763,11 @@ export class FSUtil {
    * @param opts
    * @returns True if file was copied or moved, false otherwise
    */
-  async safeCopy(destFile: FilePath | FSUtil, opts: SafeCopyOpts = {}): Promise<boolean | undefined> {
+  async safeCopy(destFile: FilePath | FSItem, opts: SafeCopyOpts = {}): Promise<boolean | undefined> {
     await this.getStats();
 
     if (this._stats && this._stats.exists()) {
-      const fsDest = FSUtil.isInstance(destFile) ? destFile : fsutil(destFile);
+      const fsDest = FSItem.isInstance(destFile) ? destFile : fsitem(destFile);
       await fsDest.getStats();
 
       let bGoAhead: FilePath | boolean = true;

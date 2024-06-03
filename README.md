@@ -10,9 +10,9 @@ npm install @epdoc/fsutil
 ```
 
 ```ts
-import { futil } from '@epdoc/fsutil';
+import { fsitem } from '@epdoc/fsutil';
 
-if( fsutil('~/.ssh').isDir() ) {
+if( fsitem('~/.ssh').isDir() ) {
   console.log('SSH is installed');
 }
 ```
