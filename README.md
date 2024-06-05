@@ -21,6 +21,8 @@ if( fsitem('~/.ssh').isDir() ) {
 # Developers
 
 ```bash
+git clone git+https://github.com/epdoc/fsutil.git
+cd fsutil
 npm install
 npm run build
 npm test

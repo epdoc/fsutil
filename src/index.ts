@@ -31,7 +31,7 @@ const REG = {
   pdf: /\.pdf$/i,
   xml: /\.xml$/i,
   json: /\.json$/i,
-  txt: /\.txt$/i,
+  txt: /\.(txt|text)$/i,
   leadingDot: new RegExp(/^\./),
   BOM: new RegExp(/^\uFEFF/)
 };
@@ -95,6 +95,10 @@ export class FSStats {
     return val && val._isFSStats === true;
   }
 
+  copy(): FSStats {
+    return new FSStats(this._stats);
+  }
+
   isInitialized(): boolean {
     return this._stats ? true : false;
   }
@@ -142,24 +146,38 @@ export class FSStats {
   }
 }
 
+/**
+ * An object representing a file system entry, which may be either a file or a
+ * folder. Has convenience methods to retrieve properties of the file or folder.
+ */
 export class FSItem {
   protected _isFSItem = true;
   // @ts-ignore
   protected f: FilePath | FolderPath;
   // @ts-ignore
   protected _stats: FSStats = new FSStats();
-  protected _haveChildren: boolean = false;
+  protected _haveReadFolderContents: boolean = false;
   // If this is a folder, contains a filtered list of folders within this folder
   protected _folders: FSItem[] = [];
   // If this is a folder, contains a filtered list of files within this folder
   protected _files: FSItem[] = [];
   protected _args: (FilePath | FolderPath)[] = [];
 
+  /**
+   * Create a new FSItem object from an existing FSItem object, a file path or
+   * an array of file path parts that can be merged using path.resolve().
+   * @param args
+   */
   constructor(...args: FSItem[] | FilePath[] | FolderPath[]) {
     if (args.length === 1) {
       if (FSItem.isInstance(args[0])) {
-        this.f = args[0].f;
-        this._args = [args[0].f];
+        const fs = args[0];
+        this.f = fs.f;
+        this._args = [fs.f];
+        this._stats = fs._stats.copy();
+        this._haveReadFolderContents = fs._haveReadFolderContents;
+        this._folders = fs._folders;
+        this._files = fs._files;
       } else if (isArray(args[0])) {
         this.f = path.resolve(args[0]);
         this._args = args[0];
@@ -178,10 +196,27 @@ export class FSItem {
     }
   }
 
+  /**
+   * Return a copy of this object.
+   */
+  copy(): FSItem {
+    return new FSItem(this);
+  }
+
+  /**
+   * Test if val is an FSItem object. Can be used as a typescript type gate.
+   * @param val Any object
+   * @returns
+   */
   static isInstance(val: any): val is FSItem {
     return val && val._isFSItem === true;
   }
 
+  /**
+   * Append a file or folder name to this.f.
+   * @param args A file name or array of file names.
+   * @returns This
+   */
   add(...args: FilePath[] | FolderPath[]): this {
     if (args.length === 1) {
       if (isArray(args[0])) {
@@ -257,8 +292,12 @@ export class FSItem {
     return path.basename(this.f);
   }
 
-  hasChildren(): boolean {
-    return this._haveChildren;
+  /**
+   * For folders, indicates if we have read the folder's contents.
+   * @returns
+   */
+  haveReadFolderContents(): boolean {
+    return this._haveReadFolderContents;
   }
 
   /**
@@ -319,20 +358,44 @@ export class FSItem {
     return false;
   }
 
+  /**
+   * Tests the extension to see if this is a PDF file.
+   * @returns True if the extension indicates this is a PDF file.
+   */
   isPdf(): boolean {
     return REG.pdf.test(this.extname);
   }
 
+  /**
+   * Tests the extension to see if this is an XML file.
+   * @returns True if the extension indicates this is an XML file.
+   */
   isXml(): boolean {
     return REG.xml.test(this.extname);
   }
+
+  /**
+   * Tests the extension to see if this is a text file.
+   * @returns True if the extension indicates this is a text file.
+   */
   isTxt(): boolean {
     return REG.txt.test(this.extname);
   }
+
+  /**
+   * Tests the extension to see if this is a JSON file.
+   * @returns True if the extension indicates this is a JSON file.
+   */
+
   isJson(): boolean {
     return REG.json.test(this.extname);
   }
 
+  /**
+   * Set or change the extension of this file. `This` must be a file.
+   * @param ext The extension. The string may or may include a leading '.'.
+   * @returns
+   */
   setExt(ext: string): this {
     if (!REG.leadingDot.test(ext)) {
       ext = '.' + ext;
@@ -344,6 +407,13 @@ export class FSItem {
     return this;
   }
 
+  /**
+   * Return the FSSTATS for this file, retrieving the stats and referening them
+   * with this._stats if they have not been previously read.
+   * @param force Force retrieval of the states, even if they have already been
+   * retrieved.
+   * @returns A promise with an FSStats object
+   */
   public getStats(force = false): Promise<FSStats> {
     if (force || !this._stats.isInitialized()) {
       return fs.promises
@@ -361,40 +431,73 @@ export class FSItem {
     }
   }
 
+  /**
+   * Getter returns the FSStats object associated with this file. A previous
+   * call to getStats() is needed in order to read stats from disk.
+   */
   get stats(): FSStats {
     return this._stats;
   }
 
+  /**
+   * Is this a folder? Will retrieve the FSStats for the file system entry if
+   * they haven't been previously read.
+   * @returns a promise with value true if this is a folder.
+   */
   async isDir(): Promise<boolean> {
     return this.getStats().then((resp) => {
       return this._stats.isDirectory();
     });
   }
 
+  /**
+   * Is this a file? Will retrieve the FSStats for the file system entry if they
+   * haven't been previously read.
+   * @returns a promise with value true if this is a file.
+   */
   async isFile(): Promise<boolean> {
     return this.getStats().then((resp) => {
       return this._stats.isFile();
     });
   }
 
+  /**
+   * Does this file or folder exist? Will retrieve the FSStats for the file
+   * system entry if they haven't been previously read.
+   * @returns a promise with value true if this exists.
+   */
   async exists(): Promise<boolean> {
     return this.getStats().then((resp) => {
       return this._stats.isDirectory() || this._stats.isFile();
     });
   }
 
+  /**
+   * Is this a folder? Will retrieve the FSStats for the file system entry if
+   * they haven't been previously read.
+   * @returns a promise with value true if this is a folder.
+   * @deprecated Use isDir() method instead.
+   */
   async dirExists(): Promise<boolean> {
-    return this.getStats().then((resp) => {
-      return this._stats.isDirectory();
-    });
+    return this.isDir();
   }
 
+  /**
+   * Is this a file? Will retrieve the FSStats for the file system entry if they
+   * haven't been previously read.
+   * @returns a promise with value true if this is a file.
+   * @deprecated Use isFile() method instead.
+   */
   async fileExists(): Promise<boolean> {
-    return this.getStats().then((resp) => {
-      return this._stats.isFile();
-    });
+    return this.isFile();
   }
 
+  /**
+   * When was this file system entry created? Will retrieve the FSStats for the
+   * file system entry if they haven't been previously read.
+   * @returns a promise with the Date this file was created.
+   * @deprecated Use isFile() method instead.
+   */
   async createdAt(): Promise<Date | undefined> {
     return this.getStats().then((resp) => {
       return this._stats.createdAt();
@@ -405,30 +508,62 @@ export class FSItem {
     return name === this.basename;
   }
 
+  /**
+   * Ensures there is a folder with this path.
+   * @param options
+   * @returns
+   */
   async ensureDir(options?: fx.EnsureDirOptions | number): Promise<unknown> {
     return fx.ensureDir(this.f, options);
   }
 
+  /**
+   * Syncronous version of `ensureDir`.
+   * @param options
+   * @returns
+   */
   ensureDirSync(options?: fx.EnsureDirOptions | number): this {
     fx.ensureDirSync(this.f, options);
     return this;
   }
 
+  /**
+   * Removes this file or folder.
+   * @returns
+   */
   async remove(): Promise<void> {
     return fx.remove(this.f);
   }
 
+  /**
+   * Copy this file or folder to the location `dest`.
+   * @param dest
+   * @param options An fx.CopyOptions object
+   * @returns
+   */
   async copyTo(dest: FilePath | FSItem, options?: fx.CopyOptions): Promise<void> {
     const p: FilePath = FSItem.isInstance(dest) ? dest.path : dest;
     return fx.copy(this.f, p, options);
   }
 
+  /**
+   * Syncronous version of `copyTo` method.
+   * @param dest
+   * @param options An fx.CopyOptionsSync object
+   * @returns
+   */
   copySync(dest: FilePath | FSItem, options?: fx.CopyOptionsSync): this {
     const p: FilePath = FSItem.isInstance(dest) ? dest.path : dest;
     fx.copySync(this.f, p, options);
     return this;
   }
 
+  /**
+   * Move this file or folder to the location `dest`.
+   * @param dest
+   * @param options An fx.MoveOptions object
+   * @returns
+   */
   async moveTo(dest: FilePath | FSItem, options?: fx.MoveOptions): Promise<void> {
     const p: FilePath = FSItem.isInstance(dest) ? dest.path : dest;
     return fx.move(this.f, p, options);
@@ -482,6 +617,7 @@ export class FSItem {
     };
     this._folders = [];
     this._files = [];
+    this._haveReadFolderContents = false;
     return fs.promises
       .readdir(this.f)
       .then((entries) => {
@@ -520,6 +656,7 @@ export class FSItem {
         return Promise.all(jobs);
       })
       .then((resp) => {
+        this._haveReadFolderContents = true;
         return Promise.resolve(this);
       });
   }
@@ -545,8 +682,7 @@ export class FSItem {
   }
 
   /**
-   * Calculate the checksum of a file
-   * @param file
+   * For files, calculate the checksum of this file
    */
   async checksum() {
     return new Promise((resolve, reject) => {
@@ -562,8 +698,8 @@ export class FSItem {
   }
 
   /**
-   * Get the Creation Date of a PDF file by reading it's metadata.
-   * @param file
+   * For PDF files, gets the Creation Date of this file file by reading it's
+   * metadata.
    */
   async getPdfDate(): Promise<Date | undefined> {
     return new Promise((resolve, reject) => {
@@ -585,8 +721,7 @@ export class FSItem {
   }
 
   /**
-   * Use checksums to test if two files are equal
-   * @param path1
+   * Use checksums to test if this file is equal to path2
    * @param path2
    */
   async filesEqual(path2: FilePath): Promise<boolean> {
