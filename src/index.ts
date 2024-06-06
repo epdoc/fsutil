@@ -10,6 +10,7 @@ import {
   deepCopySetDefaultOpts,
   isArray,
   isBoolean,
+  isDict,
   isError,
   isNonEmptyArray,
   isNonEmptyString,
@@ -77,7 +78,7 @@ export type GetChildrenOpts = {
   callback?: FSItemCallback;
 };
 
-export function fsitem(...args: FSItem[] | FilePath[] | FolderPath[]): FSItem {
+export function fsitem(...args: (FSItem | FolderPath | FilePath)[]): FSItem {
   return new FSItem(...args);
 }
 
@@ -95,19 +96,35 @@ export class FSStats {
     return val && val._isFSStats === true;
   }
 
+  /**
+   * Return a copy of this object.
+   * @returns
+   */
   copy(): FSStats {
     return new FSStats(this._stats);
   }
 
+  /**
+   * Test if the stats have been read
+   * @returns
+   */
   isInitialized(): boolean {
     return this._stats ? true : false;
   }
 
+  /**
+   * Clear stats.
+   * @returns
+   */
   clear(): this {
     this._stats = undefined;
     return this;
   }
 
+  /**
+   * Does the file exist? Should be called only after stats have been read.
+   * @returns
+   */
   exists(): boolean {
     if (this._stats) {
       return this._stats.isDirectory() === true || this._stats.isFile() === true;
@@ -120,6 +137,14 @@ export class FSStats {
       return this._stats.isDirectory() === true;
     }
     return false;
+  }
+
+  isFolder(): boolean {
+    return this.isDirectory();
+  }
+
+  isDir(): boolean {
+    return this.isDirectory();
   }
 
   isFile(): boolean {
@@ -153,14 +178,16 @@ export class FSStats {
 export class FSItem {
   protected _isFSItem = true;
   // @ts-ignore
-  protected f: FilePath | FolderPath;
+  protected _f: FilePath | FolderPath;
   // @ts-ignore
   protected _stats: FSStats = new FSStats();
+  // Test to see if _folders and _files have been read
   protected _haveReadFolderContents: boolean = false;
   // If this is a folder, contains a filtered list of folders within this folder
   protected _folders: FSItem[] = [];
   // If this is a folder, contains a filtered list of files within this folder
   protected _files: FSItem[] = [];
+  // Stores the strings that were used to create the path. This property may be deprecated at any time.
   protected _args: (FilePath | FolderPath)[] = [];
 
   /**
@@ -168,31 +195,46 @@ export class FSItem {
    * an array of file path parts that can be merged using path.resolve().
    * @param args
    */
-  constructor(...args: FSItem[] | FilePath[] | FolderPath[]) {
+  constructor(...args: (FSItem | FolderPath | FilePath)[]) {
     if (args.length === 1) {
-      if (FSItem.isInstance(args[0])) {
-        const fs = args[0];
-        this.f = fs.f;
-        this._args = [fs.f];
-        this._stats = fs._stats.copy();
-        this._haveReadFolderContents = fs._haveReadFolderContents;
-        this._folders = fs._folders;
-        this._files = fs._files;
-      } else if (isArray(args[0])) {
-        this.f = path.resolve(args[0]);
-        this._args = args[0];
-      } else {
-        this.f = args[0];
-        this._args = [args[0]];
+      const arg = args[0];
+      if (FSItem.isInstance(arg)) {
+        this._f = arg._f;
+        this._args = arg._args.map((item) => {
+          return item;
+        });
+        this._stats = arg._stats.copy();
+        this._haveReadFolderContents = arg._haveReadFolderContents;
+        this._folders = arg._folders.map((item) => {
+          return item.copy();
+        });
+        this._files = arg._files.map((item) => {
+          return item.copy();
+        });
+      } else if (isArray(arg)) {
+        if (
+          arg.find((item) => {
+            return !isString(item);
+          })
+        ) {
+          throw new Error('Invalid parameter');
+        } else {
+          this._f = path.resolve(arg);
+          this._args = arg;
+        }
+      } else if (isString(arg)) {
+        this._f = arg;
+        this._args = [arg];
       }
     } else if (args.length > 1) {
       args.forEach((arg) => {
-        if (FSItem.isInstance(arg)) {
+        if (isString(arg)) {
+          this._args.push(arg);
+        } else {
           throw new Error('Invalid parameter');
         }
-        this._args.push(arg);
       });
-      this.f = path.resolve(...(args as string[]));
+      this._f = path.resolve(...(args as string[]));
     }
   }
 
@@ -209,7 +251,7 @@ export class FSItem {
    * @returns
    */
   static isInstance(val: any): val is FSItem {
-    return val && val._isFSItem === true;
+    return isDict(val) && val._isFSItem === true;
   }
 
   /**
@@ -220,16 +262,16 @@ export class FSItem {
   add(...args: FilePath[] | FolderPath[]): this {
     if (args.length === 1) {
       if (isArray(args[0])) {
-        this.f = path.resolve(this.f, ...args[0]);
+        this._f = path.resolve(this._f, ...args[0]);
         args[0].forEach((arg) => {
           this._args.push(arg);
         });
       } else {
-        this.f = path.resolve(this.f, args[0]);
+        this._f = path.resolve(this._f, args[0]);
         this._args.push(args[0]);
       }
     } else if (args.length > 1) {
-      this.f = path.resolve(this.f, ...args);
+      this._f = path.resolve(this._f, ...args);
       args.forEach((arg) => {
         this._args.push(arg);
       });
@@ -241,8 +283,8 @@ export class FSItem {
    * Set the path to the home dir
    */
   home(...args: FilePath[] | FolderPath[]): this {
-    this.f = os.userInfo().homedir;
-    this._args = [this.f];
+    this._f = os.userInfo().homedir;
+    this._args = [this._f];
     if (args) {
       this.add(...args);
     }
@@ -250,7 +292,7 @@ export class FSItem {
   }
 
   get path(): FilePath {
-    return this.f;
+    return this._f;
   }
 
   /**
@@ -268,28 +310,28 @@ export class FSItem {
    * path.basename, this does NOT include the extension.
    */
   get basename(): string {
-    return path.basename(this.f).replace(/\.[^\.]*$/, '');
+    return path.basename(this._f).replace(/\.[^\.]*$/, '');
   }
 
   /**
    * Returns '/path/to' portion of /path/to/file.name.html'
    */
   get dirname(): string {
-    return path.dirname(this.f);
+    return path.dirname(this._f);
   }
 
   /**
    * Returns 'html' portion of /path/to/file.name.html'
    */
   get extname(): string {
-    return path.extname(this.f);
+    return path.extname(this._f);
   }
 
   /**
    * Returns file.name.html portion of /path/to/file.name.html'
    */
   get filename(): string {
-    return path.basename(this.f);
+    return path.basename(this._f);
   }
 
   /**
@@ -401,15 +443,16 @@ export class FSItem {
       ext = '.' + ext;
     }
     if (ext !== this.extname) {
-      this.f = path.format({ ...path.parse(this.f), base: '', ext: ext });
+      this._f = path.format({ ...path.parse(this._f), base: '', ext: ext });
       this._stats.clear();
     }
     return this;
   }
 
   /**
-   * Return the FSSTATS for this file, retrieving the stats and referening them
+   * Return the FSSTATS for this file, retrieving the stats and referencing them
    * with this._stats if they have not been previously read.
+   * Example `fsutil('mypath/file.txt').getStats().isFile()`
    * @param force Force retrieval of the states, even if they have already been
    * retrieved.
    * @returns A promise with an FSStats object
@@ -417,7 +460,7 @@ export class FSItem {
   public getStats(force = false): Promise<FSStats> {
     if (force || !this._stats.isInitialized()) {
       return fs.promises
-        .stat(this.f)
+        .stat(this._f)
         .then((resp: fs.Stats) => {
           this._stats = new FSStats(resp);
           return Promise.resolve(this._stats);
@@ -444,10 +487,17 @@ export class FSItem {
    * they haven't been previously read.
    * @returns a promise with value true if this is a folder.
    */
-  async isDir(): Promise<boolean> {
+  async isDirectory(): Promise<boolean> {
     return this.getStats().then((resp) => {
       return this._stats.isDirectory();
     });
+  }
+  async isDir(): Promise<boolean> {
+    return this.isDirectory();
+  }
+
+  async isFolder(): Promise<boolean> {
+    return this.isDirectory();
   }
 
   /**
@@ -514,7 +564,7 @@ export class FSItem {
    * @returns
    */
   async ensureDir(options?: fx.EnsureDirOptions | number): Promise<unknown> {
-    return fx.ensureDir(this.f, options);
+    return fx.ensureDir(this._f, options);
   }
 
   /**
@@ -523,7 +573,7 @@ export class FSItem {
    * @returns
    */
   ensureDirSync(options?: fx.EnsureDirOptions | number): this {
-    fx.ensureDirSync(this.f, options);
+    fx.ensureDirSync(this._f, options);
     return this;
   }
 
@@ -532,7 +582,7 @@ export class FSItem {
    * @returns
    */
   async remove(): Promise<void> {
-    return fx.remove(this.f);
+    return fx.remove(this._f);
   }
 
   /**
@@ -543,7 +593,7 @@ export class FSItem {
    */
   async copyTo(dest: FilePath | FSItem, options?: fx.CopyOptions): Promise<void> {
     const p: FilePath = FSItem.isInstance(dest) ? dest.path : dest;
-    return fx.copy(this.f, p, options);
+    return fx.copy(this._f, p, options);
   }
 
   /**
@@ -554,7 +604,7 @@ export class FSItem {
    */
   copySync(dest: FilePath | FSItem, options?: fx.CopyOptionsSync): this {
     const p: FilePath = FSItem.isInstance(dest) ? dest.path : dest;
-    fx.copySync(this.f, p, options);
+    fx.copySync(this._f, p, options);
     return this;
   }
 
@@ -566,7 +616,7 @@ export class FSItem {
    */
   async moveTo(dest: FilePath | FSItem, options?: fx.MoveOptions): Promise<void> {
     const p: FilePath = FSItem.isInstance(dest) ? dest.path : dest;
-    return fx.move(this.f, p, options);
+    return fx.move(this._f, p, options);
   }
 
   /**
@@ -574,15 +624,11 @@ export class FSItem {
    * Repopulates this._files and this._folders in the process. Returns just the
    * filenames, not the full path.
    * @param regex (optional) Use to constrain results
-   * @return Array of file names
-   * @deprecated. Use getChildren() and files instead.
+   * @return Array of files within the folder
    */
-  async getFiles(regex?: RegExp): Promise<FileName[]> {
+  async getFiles(regex?: RegExp): Promise<FSItem[]> {
     return this.getChildren({ match: regex }).then(() => {
-      const paths = this._files.map((fs) => {
-        return fs.filename;
-      });
-      return Promise.resolve(paths);
+      return Promise.resolve(this._files);
     });
   }
 
@@ -591,15 +637,11 @@ export class FSItem {
    * Repopulates this._files and this._folders in the process. Returns just the
    * folder names, not the full path.
    * @param regex (optional) Use to constrain results
-   * @return Array of folder names.
-   * @deprecated. Use getChildren() and folders instead.
+   * @return Array of folders with the folder
    */
-  async getFolders(regex?: RegExp): Promise<FolderPath[]> {
+  async getFolders(regex?: RegExp): Promise<FSItem[]> {
     return this.getChildren({ match: regex }).then(() => {
-      const paths = this._folders.map((fs) => {
-        return fs.path;
-      });
-      return Promise.resolve(paths);
+      return Promise.resolve(this._folders);
     });
   }
 
@@ -608,22 +650,24 @@ export class FSItem {
    * this folder and stores the lists as this._files and this._folders.
    * @param opts.match (Optional) File or folder names must match this string or
    * RegExp. If not specified then file and folder names are not filtered.
+   * @return Array of all files and folders within this folder
    */
-  async getChildren(options: Partial<GetChildrenOpts> = { levels: 1 }): Promise<this> {
+  async getChildren(options: Partial<GetChildrenOpts> = { levels: 1 }): Promise<FSItem[]> {
     const opts: GetChildrenOpts = {
       match: options.match,
       levels: isNumber(options.levels) ? options.levels - 1 : 0,
       callback: options.callback
     };
+    const all: FSItem[] = [];
     this._folders = [];
     this._files = [];
     this._haveReadFolderContents = false;
     return fs.promises
-      .readdir(this.f)
+      .readdir(this._f)
       .then((entries) => {
         const jobs = [];
         for (const entry of entries) {
-          const fs = fsitem(this.f, entry);
+          const fs = fsitem(this._f, entry);
           let bMatch = false;
           if (opts.match) {
             if (isString(opts.match) && entry === opts.match) {
@@ -636,6 +680,7 @@ export class FSItem {
           }
           if (bMatch) {
             const job = fs.getStats().then((stat: FSStats) => {
+              all.push(fs);
               if (opts.callback) {
                 const job1 = opts.callback(fs);
                 jobs.push(job1);
@@ -657,7 +702,7 @@ export class FSItem {
       })
       .then((resp) => {
         this._haveReadFolderContents = true;
-        return Promise.resolve(this);
+        return Promise.resolve(all);
       });
   }
 
@@ -687,7 +732,7 @@ export class FSItem {
   async checksum() {
     return new Promise((resolve, reject) => {
       // @ts-ignore
-      checksum.file(this.f, (err, sum) => {
+      checksum.file(this._f, (err, sum) => {
         if (err) {
           reject(this.newError(err));
         } else {
@@ -716,7 +761,7 @@ export class FSItem {
       pdfParser.on('pdfParser_dataError', (errMsg: string) => {
         reject(this.newError(errMsg));
       });
-      pdfParser.loadPDF(this.f);
+      pdfParser.loadPDF(this._f);
     });
   }
 
@@ -747,14 +792,14 @@ export class FSItem {
   }
 
   async readAsBuffer(): Promise<Buffer> {
-    return readFile(this.f).catch((err) => {
+    return readFile(this._f).catch((err) => {
       throw this.newError(err);
     });
   }
 
   async readAsString(): Promise<any> {
     return new Promise((resolve, reject) => {
-      fs.readFile(this.f, 'utf8', (err, data) => {
+      fs.readFile(this._f, 'utf8', (err, data) => {
         if (err) {
           reject(this.newError(err));
         } else {
@@ -767,7 +812,7 @@ export class FSItem {
 
   async readJson(): Promise<any> {
     return new Promise((resolve, reject) => {
-      fs.readFile(this.f, 'utf8', (err, data) => {
+      fs.readFile(this._f, 'utf8', (err, data) => {
         if (err) {
           reject(this.newError(err));
         } else {
@@ -826,7 +871,7 @@ export class FSItem {
 
   async writeJson(data: any): Promise<void> {
     const buf = Buffer.from(JSON.stringify(data, null, 2), 'utf8');
-    return fs.promises.writeFile(this.f, buf);
+    return fs.promises.writeFile(this._f, buf);
   }
 
   async writeBase64(data: string): Promise<void> {
@@ -838,7 +883,7 @@ export class FSItem {
       data = data.join('\n');
     }
     const buf = Buffer.from(data, type);
-    return fs.promises.writeFile(this.f, buf);
+    return fs.promises.writeFile(this._f, buf);
   }
 
   /**
@@ -938,10 +983,10 @@ export class FSItem {
 
   newError(code: any, message?: string): Error {
     if (isError(code)) {
-      code.message = `${code.message}: ${this.f}`;
+      code.message = `${code.message}: ${this._f}`;
       return code;
     }
-    let err: Error = new Error(`${message}: ${this.f}`);
+    let err: Error = new Error(`${message}: ${this._f}`);
     // @ts-ignore
     err.code = code;
     return err;

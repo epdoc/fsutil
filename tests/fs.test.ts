@@ -8,7 +8,8 @@ const HOME = os.userInfo().homedir;
 
 describe('fsitem', () => {
   beforeEach(async () => {
-    await fsitem('./tests/data').copyTo('./tests/data1');
+    const fs = fsitem('./tests/data');
+    await fs.copyTo('./tests/data1');
     await fsitem('./tests/data2').remove();
     await fsitem('./tests/data2-01').remove();
     await fsitem('./tests/data2-02').remove();
@@ -36,46 +37,52 @@ describe('fsitem', () => {
         expect(isArray(resp)).toBe(true);
         expect(resp.length).toBe(2);
         resp = resp.sort();
-        expect(resp[0]).toMatch(/data$/);
-        expect(resp[1]).toMatch(/data1$/);
+        expect(resp[0].filename).toMatch(/data$/);
+        expect(resp[1].filename).toMatch(/data1$/);
       });
   });
   test('fsGetFiles', () => {
-    return fsitem('.')
+    let fs0: FSItem = fsitem('.');
+    let fs1 = fsitem('./tests');
+    return fs0
       .getFolders()
       .then((resp) => {
         expect(isArray(resp)).toBe(true);
-        return fsitem('./tests').getFiles();
+        return fs1.getFiles();
       })
       .then((resp) => {
         expect(isArray(resp)).toBe(true);
         expect(resp.length).toBe(1);
-        resp = resp.sort();
-        expect(resp[0]).toMatch(/fs\.test\.ts$/);
-        return fsitem('./tests').getChildren();
+        fs1.sortFiles();
+        expect(fs1.files[0].filename).toMatch(/fs\.test\.ts$/);
+        return fs1.getChildren();
       })
       .then((resp) => {
-        expect(isArray(resp.files)).toBe(true);
-        expect(resp.files.length).toBe(1);
-        resp = resp.sortFiles();
-        expect(resp.files[0].filename).toMatch(/fs\.test\.ts$/);
+        expect(isArray(resp)).toBe(true);
+        expect(resp.length).toBe(3);
+        fs1.sortFiles();
+        expect(fs1.files[0].filename).toMatch(/fs\.test\.ts$/);
       });
   });
   test('getChildren', () => {
-    return fsitem('.')
+    let fs0: FSItem = fsitem('.');
+    let fs1 = fsitem('./tests');
+    return fs0
       .getChildren()
       .then((resp) => {
-        expect(isArray(resp.files)).toBe(true);
-        expect(isArray(resp.folders)).toBe(true);
-        return fsitem('./tests').getChildren();
+        expect(isArray(resp)).toBe(true);
+        expect(isArray(fs0.files)).toBe(true);
+        expect(isArray(fs0.folders)).toBe(true);
+        return fs1.getChildren();
       })
       .then((resp) => {
-        expect(isArray(resp.files)).toBe(true);
-        expect(isArray(resp.folders)).toBe(true);
-        expect(resp.files.length).toBe(1);
-        expect(resp.folders.length).toBe(2);
-        resp = resp.sortFolders();
-        expect(resp.folders[0].filename).toMatch('data');
+        expect(isArray(resp)).toBe(true);
+        expect(isArray(fs1.files)).toBe(true);
+        expect(isArray(fs1.folders)).toBe(true);
+        expect(fs1.files.length).toBe(1);
+        expect(fs1.folders.length).toBe(2);
+        fs1.sortFolders();
+        expect(fs1.folders[0].filename).toMatch('data');
       });
   });
   test('setExt', () => {
