@@ -1,6 +1,6 @@
 {
   "name": "@epdoc/fsutil",
-  "version": "2.0.1",
+  "version": "2.0.2",
   "description": "File system entry wrapper",
   "keywords": [
     "fs",
@@ -23,12 +23,11 @@
     "clean": "rm -rf dist docs coverage && echo 'Done.'",
     "format": "prettier --write 'src/**/*.ts'",
     "docs": "./node_modules/typedoc/bin/typedoc",
-    "prepare": "npm run build",
     "publish": "npm publish --access public"
   },
   "dependencies": {
-    "@epdoc/timeutil": "^2.4.1",
-    "@epdoc/typeutil": "^1.0.8",
+    "@epdoc/timeutil": "^2.5.2",
+    "@epdoc/typeutil": "^1.1.1",
     "checksum": "^1.0.0",
     "fs-extra": "^11.2.0",
     "pdf2json": "^3.0.5"
