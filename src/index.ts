@@ -450,6 +450,19 @@ export class FSItem {
   }
 
   /**
+   * Set or change the basename of this file. `This` must be a file.
+   * @param val The extension. The string may or may include a leading '.'.
+   * @returns
+   */
+  setBasename(val: string): this {
+    if (val !== this.basename) {
+      this._f = path.format({ dir: this.dirname, name: val, ext: this.extname });
+      this._stats.clear();
+    }
+    return this;
+  }
+
+  /**
    * Return the FSSTATS for this file, retrieving the stats and referencing them
    * with this._stats if they have not been previously read.
    * Example `fsutil('mypath/file.txt').getStats().isFile()`

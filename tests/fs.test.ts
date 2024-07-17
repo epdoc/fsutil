@@ -92,6 +92,14 @@ describe('fsitem', () => {
     expect(fs.setExt('txt').extname).toEqual('.txt');
     expect(fs.setExt('rsc').path).toEqual(EXPECTED);
   });
+  test('setBasename', () => {
+    const PATH = './mypath/to/file/sample.less.json';
+    const EXPECTED = './mypath/to/file/sample.more.json';
+    const fs = fsitem(PATH);
+    fs.setBasename('sample.more');
+    expect(fs.path).toEqual(EXPECTED);
+    expect(fs.basename).toEqual('sample.more');
+  });
   test('isDir', () => {
     return Promise.resolve()
       .then((resp) => {
