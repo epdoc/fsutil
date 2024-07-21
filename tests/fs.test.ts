@@ -324,6 +324,26 @@ describe('fsitem', () => {
         expect(resp).toBe(false);
       });
   });
+  test('fsEnsureDir no file', () => {
+    return Promise.resolve()
+      .then((resp) => {
+        return fsitem('./tests/data1/tmp.txt').ensureDir();
+      })
+      .then((resp) => {
+        return fsitem('./tests/data1/tmp.txt').isDir();
+      })
+      .then((resp) => {
+        expect(resp).toBe(true);
+        return fsitem('./tests/data1/tmp.txt').remove();
+      })
+      .then((resp) => {
+        expect(resp).toBeUndefined();
+        return fsitem('./tests/data1/tmp.txt').isDir();
+      })
+      .then((resp) => {
+        expect(resp).toBe(false);
+      });
+  });
   test('fsCopy fsitem.Move', () => {
     return Promise.resolve()
       .then((resp) => {
