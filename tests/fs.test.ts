@@ -1,3 +1,4 @@
+import { dateUtil } from '@epdoc/timeutil';
 import { isDate, isValidDate } from '@epdoc/typeutil';
 import { isArray } from 'epdoc-util';
 import os from 'node:os';
@@ -235,7 +236,8 @@ describe('fsitem', () => {
         expect(isValidDate(resp)).toBe(true);
         if (isDate(resp)) {
           process.env.TZ = 'CST';
-          expect(new Date(resp).toISOString()).toBe('2018-02-01T06:00:00.000Z');
+          expect(new Date(resp).toISOString()).toBe('2018-02-01T00:00:00.000Z');
+          expect(dateUtil(resp).toISOLocaleString()).toBe('2018-01-31T18:00:00.000-06:00');
         }
       })
       .catch((err) => {

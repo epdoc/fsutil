@@ -239,7 +239,7 @@ export class FSItem {
   }
 
   /**
-   * Return a copy of this object.
+   * Return a copy of this object. Does not copy the file.
    */
   copy(): FSItem {
     return new FSItem(this);
@@ -678,7 +678,7 @@ export class FSItem {
     return fs.promises
       .readdir(this._f)
       .then((entries) => {
-        const jobs = [];
+        const jobs: Promise<any>[] = [];
         for (const entry of entries) {
           const fs = fsitem(this._f, entry);
           let bMatch = false;
@@ -771,8 +771,8 @@ export class FSItem {
         }
         resolve(new Date(0));
       });
-      pdfParser.on('pdfParser_dataError', (errMsg: string) => {
-        reject(this.newError(errMsg));
+      pdfParser.on('pdfParser_dataError', (errObj: Record<'parserError', Error>) => {
+        reject(this.newError(errObj.parserError));
       });
       pdfParser.loadPDF(this._f);
     });
@@ -902,7 +902,7 @@ export class FSItem {
   /**
    * Backup the file
    * @param opts
-   * @returns Path to file if file was backed up, or true if the file doesn't exist
+   * @returns Path to file if file was backed up, or true if the file didn't exist
    */
   async backup(opts: SafeCopyOpts = {}): Promise<FilePath | boolean> {
     await this.getStats();
