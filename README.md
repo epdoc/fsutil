@@ -28,6 +28,8 @@ npm run build
 npm test
 ```
 
+Check for latest version using `npm-check -u`, which must be installed globally.
+
 # Methods
 
 ## readJson

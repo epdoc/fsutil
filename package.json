@@ -1,6 +1,6 @@
 {
   "name": "@epdoc/fsutil",
-  "version": "2.1.2",
+  "version": "2.1.6",
   "description": "File system entry wrapper",
   "keywords": [
     "fs",
@@ -26,8 +26,8 @@
     "publish": "npm publish --access public"
   },
   "dependencies": {
-    "@epdoc/timeutil": "^2.5.3",
-    "@epdoc/typeutil": "^1.4.1",
+    "@epdoc/timeutil": "^2.5.5",
+    "@epdoc/typeutil": "^2.2.1",
     "checksum": "^1.0.0",
     "fs-extra": "^11.2.0",
     "pdf2json": "^3.0.5"
@@ -36,10 +36,9 @@
     "@types/checksum": "^0.1.35",
     "@types/fs-extra": "^11.0.4",
     "@types/jest": "^29.5.12",
-    "@types/node": "^22.2.0",
+    "@types/node": "^22.4.0",
     "eslint": "^9.9.0",
     "eslint-config-prettier": "^9.1.0",
-    "eslint-plugin-import": "^2.29.1",
     "eslint-plugin-prefer-arrow": "^1.2.3",
     "eslint-plugin-unicorn": "^55.0.0",
     "jest": "^29.7.0",
