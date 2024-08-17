@@ -71,10 +71,16 @@ export type SafeCopyOpts = Partial<{
   test: boolean;
 }>;
 
+export type FSSortOpts = {
+  type?: 'alphabetical' | 'size';
+  direction?: 'ascending' | 'descending';
+};
+
 export type FSItemCallback = (fs: FSItem) => Promise<any>;
-export type GetChildrenOpts = {
+export type GetChildrenOpts = FSSortOpts & {
   match: RegExp | string | undefined;
   levels: Integer;
+  sort?: FSSortOpts;
   callback?: FSItemCallback;
 };
 
@@ -663,13 +669,14 @@ export class FSItem {
    * this folder and stores the lists as this._files and this._folders.
    * @param opts.match (Optional) File or folder names must match this string or
    * RegExp. If not specified then file and folder names are not filtered.
-   * @return Array of all files and folders within this folder
+   * @return {Promise<FSItem[]> - Array of all files and folders within this folder
    */
   async getChildren(options: Partial<GetChildrenOpts> = { levels: 1 }): Promise<FSItem[]> {
     const opts: GetChildrenOpts = {
       match: options.match,
       levels: isNumber(options.levels) ? options.levels - 1 : 0,
-      callback: options.callback
+      callback: options.callback,
+      sort: isDict(options.sort) ? options.sort : {}
     };
     const all: FSItem[] = [];
     this._folders = [];
@@ -715,8 +722,24 @@ export class FSItem {
       })
       .then((resp) => {
         this._haveReadFolderContents = true;
+        if (isDict(opts.sort)) {
+          this.sortChildren(opts.sort);
+        }
         return Promise.resolve(all);
       });
+  }
+
+  public sortChildren(opts: FSSortOpts = {}) {
+    this.sortFolders();
+    if (opts.type === 'alphabetical') {
+      this.sortFiles();
+    } else if (opts.type === 'size') {
+      this.sortFilesBySize();
+    }
+    if (opts.direction === 'descending') {
+      this.folders.reverse();
+      this.files.reverse();
+    }
   }
 
   public sortFolders(): this {
@@ -727,13 +750,13 @@ export class FSItem {
   }
 
   public sortFiles(): this {
-    this.folders.sort((a, b) => {
+    this.files.sort((a, b) => {
       return compareDictValue(a, b, 'filename');
     });
     return this;
   }
   public sortFilesBySize(): this {
-    this.folders.sort((a, b) => {
+    this.files.sort((a, b) => {
       return compareDictValue(a, b, 'size');
     });
     return this;
