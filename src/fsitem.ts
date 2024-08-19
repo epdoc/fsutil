@@ -27,6 +27,7 @@ import { readFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import Pdfparser from 'pdf2json';
+import { FSStats } from './fsstats';
 
 const REG = {
   pdf: /\.pdf$/i,
@@ -55,21 +56,30 @@ export type FsDeepCopyOpts = DeepCopyOpts & {
   includeUrl?: any;
 };
 
-export type SafeCopyOpts = Partial<{
-  errorOnNoSource: boolean;
-  errorOnExist: boolean;
-  // Set to true to move the file rather than copy the file
-  move: boolean;
-  ensureDir: boolean; // Ensure the parent dest folder exists
-  // if backup and index are not set, and this is set, then overwrite the old file
-  overwrite: boolean;
-  // backup dest as dest~, will overwrite previous backups
-  backup: boolean;
-  // add a count to the filename until we find one that isn't taken. If an integer, only allow this many counts to be tried.
+export type BackupOpts = Partial<{
+  /** Do a simple backup by renaming the file with a `~` appended, overwriting any previous backups with this same name. If a string then append this string. */
+  backup: boolean | string;
+  /** If set and backup is not set, do a backup by renaming the file with a count appended to it's `basename`. If an integer, only allow this many counts to be tried. */
   index: boolean | Integer;
-  // don't actually move or copy the file, just execute the logic around it
-  test: boolean;
+  /** Separator to uses before the index */
+  sep: string;
+  /** if backup and index are not set, and this is set, then overwrite the old file */
+  overwrite: boolean;
+  /** If true then throw an error if this file does not exist */
+  errorOnNoSource: boolean;
+  /** If true then throw an error if a backup could not be completed because this filename is taken. */
+  errorOnExist: boolean;
 }>;
+
+export type SafeCopyOpts = BackupOpts &
+  Partial<{
+    /** Set to true to move the file rather than copy the file */
+    move: boolean;
+    /** Ensure the parent dest folder exists. Not used with #backup method. */
+    ensureDir: boolean;
+    /** don't actually move or copy the file, just execute the logic around it */
+    test: boolean;
+  }>;
 
 export type FSSortOpts = {
   type?: 'alphabetical' | 'size';
@@ -84,102 +94,27 @@ export type GetChildrenOpts = FSSortOpts & {
   callback?: FSItemCallback;
 };
 
+/**
+ * Create a new FSItem object.
+ * @param {(FSItem | FolderPath | FilePath)[])} args - An FSItem, a path, or a spread of paths to be used with path.resolve
+ * @returns {FSItem} - A new FSItem object
+ */
 export function fsitem(...args: (FSItem | FolderPath | FilePath)[]): FSItem {
   return new FSItem(...args);
 }
 
-export class FSStats {
-  protected _isFSStats = true;
-  public _stats: any;
-
-  constructor(stats?: any) {
-    if (stats) {
-      this._stats = stats;
-    }
-  }
-
-  static isInstance(val: any): val is FSStats {
-    return val && val._isFSStats === true;
-  }
-
-  /**
-   * Return a copy of this object.
-   * @returns
-   */
-  copy(): FSStats {
-    return new FSStats(this._stats);
-  }
-
-  /**
-   * Test if the stats have been read
-   * @returns
-   */
-  isInitialized(): boolean {
-    return this._stats ? true : false;
-  }
-
-  /**
-   * Clear stats.
-   * @returns
-   */
-  clear(): this {
-    this._stats = undefined;
-    return this;
-  }
-
-  /**
-   * Does the file exist? Should be called only after stats have been read.
-   * @returns
-   */
-  exists(): boolean {
-    if (this._stats) {
-      return this._stats.isDirectory() === true || this._stats.isFile() === true;
-    }
-    return false;
-  }
-
-  isDirectory(): boolean {
-    if (this._stats) {
-      return this._stats.isDirectory() === true;
-    }
-    return false;
-  }
-
-  isFolder(): boolean {
-    return this.isDirectory();
-  }
-
-  isDir(): boolean {
-    return this.isDirectory();
-  }
-
-  isFile(): boolean {
-    if (this._stats) {
-      return this._stats.isFile() === true;
-    }
-    return false;
-  }
-
-  createdAt(): Date | undefined {
-    if (this._stats) {
-      return new Date(this._stats.birthtime || this._stats.mtime);
-    }
-  }
-
-  modifiedAt(): Date | undefined {
-    if (this._stats) {
-      return new Date(this._stats.mtime);
-    }
-  }
-
-  get size(): Integer {
-    return this._stats ? this._stats.size : -1;
-  }
-}
-
 /**
  * An object representing a file system entry, which may be either a file or a
- * folder. Has convenience methods to retrieve properties of the file or folder.
+ * folder.
+ *
+ * Has methods to:
+ *  - Retrieve properties of an existing file or folder.
+ *  - Manipulate file paths.
+ *  - Recursive support for reading the contents of folders
+ *  - Safe copy and backup methods for an existing file or folder
+ *  - Reading and writing files
+ *  - Getting the creation dates of files, including using the metadata of some file formats
+ *  - Testing files for equality
  */
 export class FSItem {
   protected _isFSItem = true;
@@ -198,8 +133,8 @@ export class FSItem {
 
   /**
    * Create a new FSItem object from an existing FSItem object, a file path or
-   * an array of file path parts that can be merged using path.resolve().
-   * @param args
+   * an array of file path parts that can be merged using node:path#resolve.
+   * @param {(FSItem | FolderPath | FilePath)[])} args - An FSItem, a path, or a spread of paths to be used with path.resolve
    */
   constructor(...args: (FSItem | FolderPath | FilePath)[]) {
     if (args.length === 1) {
@@ -246,6 +181,7 @@ export class FSItem {
 
   /**
    * Return a copy of this object. Does not copy the file.
+   * @see FSItem#copyTo
    */
   copy(): FSItem {
     return new FSItem(this);
@@ -470,11 +406,14 @@ export class FSItem {
 
   /**
    * Return the FSSTATS for this file, retrieving the stats and referencing them
-   * with this._stats if they have not been previously read.
-   * Example `fsutil('mypath/file.txt').getStats().isFile()`
-   * @param force Force retrieval of the states, even if they have already been
-   * retrieved.
-   * @returns A promise with an FSStats object
+   * with this._stats if they have not been previously read. FSSTATS can become
+   * stale and should be reread if a file is manipulated.
+   *
+   * Example `fsutil('mypath/file.txt').getStats().isFile()`.
+   *
+   * @param {boolean} force Force retrieval of the states, even if they have
+   * already been retrieved.
+   * @returns {Promise<FSStats>} A promise with an FSStats object
    */
   public getStats(force = false): Promise<FSStats> {
     if (force || !this._stats.isInitialized()) {
@@ -496,6 +435,7 @@ export class FSItem {
   /**
    * Getter returns the FSStats object associated with this file. A previous
    * call to getStats() is needed in order to read stats from disk.
+   * @return {FSStats} - The FSStats for this file, if they have been read.
    */
   get stats(): FSStats {
     return this._stats;
@@ -511,10 +451,21 @@ export class FSItem {
       return this._stats.isDirectory();
     });
   }
+
+  /**
+   * Calls the FSItem#isDirectory method.
+   * @returns {Prommise<boolean>}
+   * @see FSItem#isDirectory
+   */
   async isDir(): Promise<boolean> {
     return this.isDirectory();
   }
 
+  /**
+   * Calls the FSItem#isDirectory method.
+   * @returns {Prommise<boolean>}
+   * @see FSItem#isDirectory
+   */
   async isFolder(): Promise<boolean> {
     return this.isDirectory();
   }
@@ -573,6 +524,11 @@ export class FSItem {
     });
   }
 
+  /**
+   * Test for equality with the basename of this file.
+   * @param {string} name
+   * @returns {boolean} True if equal
+   */
   isNamed(name: string): boolean {
     return name === this.basename;
   }
@@ -628,10 +584,10 @@ export class FSItem {
   }
 
   /**
-   * Move this file or folder to the location `dest`.
-   * @param dest
-   * @param options An fx.MoveOptions object
-   * @returns
+   * Move `this` file or folder to the location `dest`.
+   * @param {FilePath | FSItem} dest - The new path for the file
+   * @param {fx.MoveOptions} options - Options to `overwrite` and `dereference` symlinks.
+   * @returns {Promise<void>}
    */
   async moveTo(dest: FilePath | FSItem, options?: fx.MoveOptions): Promise<void> {
     const p: FilePath = FSItem.isInstance(dest) ? dest.path : dest;
@@ -923,34 +879,25 @@ export class FSItem {
   }
 
   /**
-   * Backup the file
-   * @param opts
-   * @returns Path to file if file was backed up, or true if the file didn't exist
+   * 'Backup' a file by moving it to a new filename. Use when copying a file to
+   * the same location or creating a new file at the same location.
+   * @param {BackupOpts} opts
+   * @returns {Promise<FilePath | boolean>} - Path to file if file was backed
+   * up, or true if the file didn't exist
    */
-  async backup(opts: SafeCopyOpts = {}): Promise<FilePath | boolean> {
+  async backup(opts: BackupOpts = {}): Promise<FilePath | boolean> {
     await this.getStats();
 
     if (this._stats && this._stats.exists()) {
       // this file already exists. Deal with it by renaming it.
       let newPath: FilePath | undefined = undefined;
       if (opts.backup) {
-        newPath = this.path + '~';
+        newPath = this.path + isNonEmptyString(opts.backup) ? (opts.backup as string) : '~';
       } else if (opts.index) {
         const limit = isBoolean(opts.index) ? 32 : asInt(opts.index);
-        let newFsDest: FSItem;
-        let count = 0;
-        let looking = true;
-        while (looking) {
-          newFsDest = fsitem(this.dirname, this.basename + '-' + pad(++count, 2) + this.extname);
-          looking = await newFsDest.exists();
-        }
-        // @ts-ignore
-        if (!looking && newFsDest) {
-          newPath = newFsDest.path;
-        } else {
-          if (opts.errorOnExist) {
-            throw this.newError('EEXIST', 'File exists');
-          }
+        newPath = await this.findAvailableIndexFilename(limit, opts.sep);
+        if (!newPath && opts.errorOnExist) {
+          throw this.newError('EEXIST', 'File exists');
         }
       } else if (!opts.overwrite) {
         if (opts.errorOnExist) {
@@ -973,7 +920,29 @@ export class FSItem {
   }
 
   /**
-   * Copy a file or directory. Optionally creates a backup if there is an existing file or directory at `destFile`.
+   * Finds the next available indexed filename. For example, for `filename.ext`,
+   * tries `filename-01.ext`, `filename-02.ext`, etc until it finds a filename
+   * that is not used.
+   * @param {Integer} limit
+   * @param {string} sep
+   * @returns - Promise with an available file path, or undefined if not found
+   */
+  async findAvailableIndexFilename(limit: Integer = 32, sep: string = '-'): Promise<FilePath | undefined> {
+    let newFsDest: FSItem | undefined;
+    let count = 0;
+    let looking = true;
+    while (looking) {
+      newFsDest = fsitem(this.dirname, this.basename + sep + pad(++count, 2) + this.extname);
+      looking = await newFsDest.exists();
+    }
+    if (!looking && FSItem.isInstance(newFsDest)) {
+      return newFsDest.path;
+    }
+  }
+
+  /**
+   * Copy an existing file or directory to a new location. Optionally creates a
+   * backup if there is an existing file or directory at `destFile`.
    * @param srcFile
    * @param destFile
    * @param opts
