@@ -4,6 +4,7 @@ import { isArray } from 'epdoc-util';
 import os from 'node:os';
 import path from 'node:path';
 import { FSItem, FSStats, SafeCopyOpts, fsitem, isFilePath, isFilename, isFolderPath } from './../src/index';
+import { fileConflictStrategyType } from './../src/types';
 
 const HOME = os.userInfo().homedir;
 
@@ -396,7 +397,7 @@ describe('fsitem', () => {
     return Promise.resolve()
       .then((resp) => {
         const opts: SafeCopyOpts = {
-          ensureDir: true
+          ensureParentDirs: true
         };
         return fsitem('./tests/data1').safeCopy('./tests/data2', opts);
       })
@@ -419,8 +420,8 @@ describe('fsitem', () => {
       .then((resp) => {
         expect(resp).toBe(true);
         const opts: SafeCopyOpts = {
-          ensureDir: false,
-          index: 5
+          ensureParentDirs: false,
+          conflictStrategy: { type: fileConflictStrategyType.renameWithNumber, limit: 5 }
         };
         return fsitem('./tests/data1').safeCopy('./tests/data2', opts);
       })

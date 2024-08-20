@@ -1,17 +1,14 @@
-// import * as checksum from 'checksum';
 import { DateUtil } from '@epdoc/timeutil';
 import {
-  DeepCopyOpts,
-  Dict,
-  Integer,
-  asInt,
   compareDictValue,
   deepCopy,
   deepCopySetDefaultOpts,
+  Dict,
+  Integer,
   isArray,
-  isBoolean,
   isDict,
   isError,
+  isInteger,
   isNonEmptyArray,
   isNonEmptyString,
   isNumber,
@@ -28,6 +25,19 @@ import os from 'node:os';
 import path from 'node:path';
 import Pdfparser from 'pdf2json';
 import { FSStats } from './fsstats';
+import {
+  FileConflictStrategy,
+  fileConflictStrategyType,
+  FileName,
+  FilePath,
+  FolderName,
+  FolderPath,
+  FsDeepCopyOpts,
+  FSSortOpts,
+  GetChildrenOpts,
+  isFilePath,
+  SafeCopyOpts
+} from './types';
 
 const REG = {
   pdf: /\.pdf$/i,
@@ -36,62 +46,6 @@ const REG = {
   txt: /\.(txt|text)$/i,
   leadingDot: new RegExp(/^\./),
   BOM: new RegExp(/^\uFEFF/)
-};
-
-export type FilePath = string;
-export type FolderPath = string;
-export type FileName = string;
-export type FileExt = string; // includes '.'
-
-export function isFilename(val: any): val is FileName {
-  return isNonEmptyString(val);
-}
-export function isFolderPath(val: any): val is FolderPath {
-  return isNonEmptyString(val);
-}
-export function isFilePath(val: any): val is FilePath {
-  return isNonEmptyString(val);
-}
-export type FsDeepCopyOpts = DeepCopyOpts & {
-  includeUrl?: any;
-};
-
-export type BackupOpts = Partial<{
-  /** Do a simple backup by renaming the file with a `~` appended, overwriting any previous backups with this same name. If a string then append this string. */
-  backup: boolean | string;
-  /** If set and backup is not set, do a backup by renaming the file with a count appended to it's `basename`. If an integer, only allow this many counts to be tried. */
-  index: boolean | Integer;
-  /** Separator to uses before the index */
-  sep: string;
-  /** if backup and index are not set, and this is set, then overwrite the old file */
-  overwrite: boolean;
-  /** If true then throw an error if this file does not exist */
-  errorOnNoSource: boolean;
-  /** If true then throw an error if a backup could not be completed because this filename is taken. */
-  errorOnExist: boolean;
-}>;
-
-export type SafeCopyOpts = BackupOpts &
-  Partial<{
-    /** Set to true to move the file rather than copy the file */
-    move: boolean;
-    /** Ensure the parent dest folder exists. Not used with #backup method. */
-    ensureDir: boolean;
-    /** don't actually move or copy the file, just execute the logic around it */
-    test: boolean;
-  }>;
-
-export type FSSortOpts = {
-  type?: 'alphabetical' | 'size';
-  direction?: 'ascending' | 'descending';
-};
-
-export type FSItemCallback = (fs: FSItem) => Promise<any>;
-export type GetChildrenOpts = FSSortOpts & {
-  match: RegExp | string | undefined;
-  levels: Integer;
-  sort?: FSSortOpts;
-  callback?: FSItemCallback;
 };
 
 /**
@@ -314,7 +268,7 @@ export class FSItem {
    * Get the list of folder names that matched a previous call to getFolders() or
    * getChildren().
    */
-  get folderNames(): FileName[] {
+  get folderNames(): FolderName[] {
     return this._folders.map((fs) => {
       return fs.filename;
     });
@@ -885,25 +839,29 @@ export class FSItem {
    * @returns {Promise<FilePath | boolean>} - Path to file if file was backed
    * up, or true if the file didn't exist
    */
-  async backup(opts: BackupOpts = {}): Promise<FilePath | boolean> {
+  async backup(opts: FileConflictStrategy = { type: 'error', errorIfExists: true }): Promise<FilePath | boolean> {
     await this.getStats();
 
     if (this._stats && this._stats.exists()) {
       // this file already exists. Deal with it by renaming it.
       let newPath: FilePath | undefined = undefined;
-      if (opts.backup) {
-        newPath = this.path + isNonEmptyString(opts.backup) ? (opts.backup as string) : '~';
-      } else if (opts.index) {
-        const limit = isBoolean(opts.index) ? 32 : asInt(opts.index);
-        newPath = await this.findAvailableIndexFilename(limit, opts.sep);
-        if (!newPath && opts.errorOnExist) {
+
+      if (opts.type === fileConflictStrategyType.renameWithTilde) {
+        newPath = this.path + '~';
+      } else if (opts.type === fileConflictStrategyType.renameWithNumber) {
+        const limit = isInteger(opts.limit) ? opts.limit : 32;
+        newPath = await this.findAvailableIndexFilename(limit, opts.separator);
+        if (!newPath && opts.errorIfExists) {
           throw this.newError('EEXIST', 'File exists');
         }
-      } else if (!opts.overwrite) {
-        if (opts.errorOnExist) {
+      } else if (opts.type === 'overwrite') {
+        newPath = this.path;
+      } else {
+        if (opts.errorIfExists) {
           throw this.newError('EEXIST', 'File exists');
         }
       }
+
       if (newPath) {
         return this.moveTo(newPath, { overwrite: true })
           .then((resp) => {
@@ -913,7 +871,9 @@ export class FSItem {
             throw this.newError('ENOENT', 'File could not be renamed');
           });
       }
-    } else if (opts.errorOnNoSource) {
+    } else {
+      // The caller should have previously tested if the file exists, so we
+      // should not hit this
       throw this.newError('ENOENT', 'File does not exist');
     }
     return Promise.resolve(true);
@@ -943,9 +903,8 @@ export class FSItem {
   /**
    * Copy an existing file or directory to a new location. Optionally creates a
    * backup if there is an existing file or directory at `destFile`.
-   * @param srcFile
    * @param destFile
-   * @param opts
+   * @param {SafeCopyOpts} opts
    * @returns True if file was copied or moved, false otherwise
    */
   async safeCopy(destFile: FilePath | FSItem, opts: SafeCopyOpts = {}): Promise<boolean | undefined> {
@@ -959,10 +918,14 @@ export class FSItem {
       if (fsDest._stats.exists()) {
         bGoAhead = false;
         // The dest already exists. Deal with it
-        bGoAhead = await fsDest.backup(opts);
+        bGoAhead = await fsDest.backup(opts.conflictStrategy);
       }
 
       if (bGoAhead) {
+        if (opts.ensureParentDirs) {
+          await fsDest.ensureDir();
+        }
+
         if (opts.move) {
           return this.moveTo(fsDest.path, { overwrite: true }).then((resp) => {
             // console.log(`  Moved ${srcFile} to ${destPath}`);
@@ -978,9 +941,9 @@ export class FSItem {
         return Promise.resolve(false);
       }
     } else {
-      if (opts.errorOnNoSource) {
-        throw this.newError('ENOENT', 'File does not exist');
-      }
+      // This shouldn't happen. The caller should know the file exists before
+      // calling this method.
+      throw this.newError('ENOENT', 'File does not exist');
     }
 
     return Promise.resolve(false);

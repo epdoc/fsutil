@@ -1,6 +1,6 @@
 {
   "name": "@epdoc/fsutil",
-  "version": "3.0.1",
+  "version": "4.0.0",
   "description": "File system entry wrapper",
   "keywords": [
     "fs",
@@ -36,7 +36,7 @@
     "@types/checksum": "^0.1.35",
     "@types/fs-extra": "^11.0.4",
     "@types/jest": "^29.5.12",
-    "@types/node": "^22.4.0",
+    "@types/node": "^22.4.1",
     "eslint": "^9.9.0",
     "eslint-config-prettier": "^9.1.0",
     "eslint-plugin-prefer-arrow": "^1.2.3",
@@ -44,7 +44,7 @@
     "jest": "^29.7.0",
     "prettier": "^3.3.3",
     "ts-jest": "^29.2.4",
-    "typedoc": "^0.26.5",
+    "typedoc": "^0.26.6",
     "typescript": "^5.5.4"
   }
 }
