@@ -19,11 +19,12 @@ import {
 } from '@epdoc/typeutil';
 import checksum from 'checksum';
 import * as fx from 'fs-extra';
-import fs from 'node:fs';
+import fs, { close } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import Pdfparser from 'pdf2json';
+import { FSBytes } from './fsbytes';
 import { FSStats } from './fsstats';
 import {
   FileConflictStrategy,
@@ -202,8 +203,12 @@ export class FSItem {
   }
 
   /**
-   * Returns 'file.name' portion of /path/to/file.name.html'. Unlike
-   * path.basename, this does NOT include the extension.
+   * Returns the file's base file name, minus it's extension. For example, for
+   * '/path/to/file.name.html', this method will return 'file.name'. Unlike
+   * node:path
+   * [basename](https://nodejs.org/api/path.html#pathbasenamepath-suffix)
+   * method, this does NOT include the extension.
+   * @return {string} The base portion of the filename, which excludes the file's extension.
    */
   get basename(): string {
     return path.basename(this._f).replace(/\.[^\.]*$/, '');
@@ -217,14 +222,18 @@ export class FSItem {
   }
 
   /**
-   * Returns 'html' portion of /path/to/file.name.html'
+   * Returns the file extension, exluding the decimal character. For example,
+   * '/path/to/file.name.html' will return 'html'.
+   * @return {string} File extension, exluding the decimal character.
    */
   get extname(): string {
     return path.extname(this._f);
   }
 
   /**
-   * Returns file.name.html portion of /path/to/file.name.html'
+   * Returns the full filename of the file or folder, including it's extension.
+   * For example, '/path/to/file.name.html' would return 'file.name.html'.
+   * @return {string} - The full file or folder name, including it's extension, if any.
    */
   get filename(): string {
     return path.basename(this._f);
@@ -232,7 +241,7 @@ export class FSItem {
 
   /**
    * For folders, indicates if we have read the folder's contents.
-   * @returns
+   * @returns {boolean} - true if this is a folder and we have read the folder's contents.
    */
   haveReadFolderContents(): boolean {
     return this._haveReadFolderContents;
@@ -298,15 +307,15 @@ export class FSItem {
 
   /**
    * Tests the extension to see if this is a PDF file.
-   * @returns True if the extension indicates this is a PDF file.
+   * @returns {boolean} True if the extension indicates this is a PDF file.
    */
-  isPdf(): boolean {
+  isPdf(testContents = false): boolean {
     return REG.pdf.test(this.extname);
   }
 
   /**
    * Tests the extension to see if this is an XML file.
-   * @returns True if the extension indicates this is an XML file.
+   * @returns  {boolean} True if the extension indicates this is an XML file.
    */
   isXml(): boolean {
     return REG.xml.test(this.extname);
@@ -314,7 +323,7 @@ export class FSItem {
 
   /**
    * Tests the extension to see if this is a text file.
-   * @returns True if the extension indicates this is a text file.
+   * @returns {boolean} True if the extension indicates this is a text file.
    */
   isTxt(): boolean {
     return REG.txt.test(this.extname);
@@ -322,11 +331,27 @@ export class FSItem {
 
   /**
    * Tests the extension to see if this is a JSON file.
-   * @returns True if the extension indicates this is a JSON file.
+   * @returns {boolean} True if the extension indicates this is a JSON file.
    */
 
   isJson(): boolean {
     return REG.json.test(this.extname);
+  }
+
+  /**
+ * Asynchronously reads a specified number of bytes from the file and returns
+ * them as an FSBytes instance. In order to determine what type of file this is,
+ * at least 12 bytes must be read.
+
+ * @param {number} [length=12] The number of bytes to read from the file.
+ * Defaults to 12.
+ * @returns {Promise<FSBytes>} A promise that resolves with an FSBytes instance
+ * containing the read bytes, or rejects with an error.
+ */
+  getBytes(length = 12): Promise<FSBytes> {
+    return this.readBytes(length).then((buffer) => {
+      return new FSBytes(buffer);
+    });
   }
 
   /**
@@ -732,6 +757,39 @@ export class FSItem {
           });
         } else {
           resolve(false);
+        }
+      });
+    });
+  }
+
+  /**
+   * Asynchronously reads a specified number of bytes from a file.
+   *
+   * @param {number} length The number of bytes to read from the file.
+   * @param {Buffer} [buffer] An optional buffer to store the read bytes. If not provided, a new buffer will be allocated with the specified length.
+   * @param {number} [offset=0] The offset within the buffer where to start storing the read bytes. Defaults to 0.
+   * @param {number} [position=0] The offset within the file from where to start reading (optional). Defaults to 0.
+   * @returns {Promise<Buffer>} A promise that resolves with the buffer containing the read bytes, or rejects with an error.
+   * @throws {Error} Rejects the promise with any error encountered during the file opening, reading, or closing operations.
+   */
+  async readBytes(length: Integer, buffer?: Buffer, offset: Integer = 0, position: Integer = 0): Promise<any> {
+    return new Promise((resolve, reject) => {
+      fs.open(this.path, 'r', (err, fd) => {
+        if (err) {
+          reject(err);
+        } else {
+          const buf = buffer ? buffer : Buffer.alloc(length);
+          fs.read(fd, buf, offset, length, position, (err2, bytesRead: Integer, resultBuffer) => {
+            close(fd, (err3) => {
+              if (err2) {
+                reject(err2);
+              } else if (err3) {
+                reject(err3);
+              } else {
+                resolve(resultBuffer);
+              }
+            });
+          });
         }
       });
     });

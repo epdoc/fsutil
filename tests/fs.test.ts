@@ -54,16 +54,18 @@ describe('fsitem', () => {
       })
       .then((resp) => {
         expect(isArray(resp)).toBe(true);
-        expect(resp.length).toBe(1);
+        expect(resp.length).toBe(2);
         fs1.sortFiles();
         expect(fs1.files[0].filename).toMatch(/fs\.test\.ts$/);
+        expect(fs1.files[1].filename).toMatch(/fsbytes\.test\.ts$/);
         return fs1.getChildren();
       })
       .then((resp) => {
         expect(isArray(resp)).toBe(true);
-        expect(resp.length).toBe(3);
+        expect(resp.length).toBe(4);
         fs1.sortFiles();
         expect(fs1.files[0].filename).toMatch(/fs\.test\.ts$/);
+        expect(fs1.files[1].filename).toMatch(/fsbytes\.test\.ts$/);
       });
   });
   test('getChildren', () => {
@@ -81,7 +83,7 @@ describe('fsitem', () => {
         expect(isArray(resp)).toBe(true);
         expect(isArray(fs1.files)).toBe(true);
         expect(isArray(fs1.folders)).toBe(true);
-        expect(fs1.files.length).toBe(1);
+        expect(fs1.files.length).toBe(2);
         expect(fs1.folders.length).toBe(2);
         fs1.sortFolders();
         expect(fs1.folders[0].filename).toMatch('data');
@@ -169,7 +171,7 @@ describe('fsitem', () => {
         expect(stats.isDirectory()).toBe(true);
         expect(stats.isFile()).toBe(false);
         expect(isValidDate(stats.createdAt())).toBe(true);
-        expect(stats.size).toBe(160);
+        expect(stats.size).toBe(192);
       });
   });
   test('constructor with .folder', () => {

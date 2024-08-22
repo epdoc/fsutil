@@ -40,3 +40,11 @@ Read a JSON file.
 
 Read a JSON file that may 'include' other JSON files.
 
+## Test for file type (new in 4.1.1)
+
+Use FSBytes class to look at the first few bytes of a file to determine it's type.
+
+```ts
+const fs:FSItem = new FSItem('/path/to/file.pdf');
+const isPdf = fs.getBytes().isPdf();
+```
