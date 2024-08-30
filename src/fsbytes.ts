@@ -1,61 +1,129 @@
+import { FILE_HEADERS, FileCategory, FileType } from './fsheaders';
+
 /**
  * A class representing the bytes in a file.
  */
 export class FSBytes {
   /**
-   * The buffer containing the file's first 12 bytes.
+   * The buffer containing the file's first 24 bytes.
    */
   private _buffer: Buffer;
 
   /**
-   * A map of file extensions to their corresponding headers.
-   */
-  protected static fileHeaders: Map<string, Buffer> = new Map([
-    ['pdf', Buffer.from('PDF-')],
-    ['jpeg', Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x0f, 0x4a, 0x46, 0x49, 0x46, 0x00])],
-    ['gif', Buffer.from('GIF87a')],
-    ['png', Buffer.from('\x89PNG\x0D\x0A\x1A\x0A')],
-    ['webp', Buffer.from([0x52, 0x49, 0x46, 0x46, 0x00, 0x00, 0x00, 0x00, 0x57, 0x45, 0x42, 0x50])],
-    ['heif', Buffer.from([0x00, 0x00, 0x00, 0x0c, 0x6a, 0x50, 0x20, 0x20, 0x0d, 0x0a, 0x00, 0x00])],
-    ['mp4', Buffer.from('mp42')],
-    ['avi', Buffer.from('RIFF')],
-    ['mov', Buffer.from('moov')],
-    ['docx', Buffer.from([0x50, 0x4b, 0x03, 0x04])],
-    ['odt', Buffer.from([0x50, 0x4b, 0x03, 0x04, 0x14, 0x00, 0x06, 0x00])],
-    ['rtf', Buffer.from([0x7b, 0x5c, 0x72, 0x74, 0x66])],
-    ['xlsx', Buffer.from([0x50, 0x4b, 0x03, 0x04, 0x14, 0x00, 0x06, 0x00])],
-    ['ods', Buffer.from([0x50, 0x4b, 0x03, 0x04, 0x14, 0x00, 0x06, 0x00])],
-    ['pptx', Buffer.from([0x50, 0x4b, 0x03, 0x04, 0x14, 0x00, 0x06, 0x00])],
-    ['odp', Buffer.from([0x50, 0x4b, 0x03, 0x04, 0x14, 0x00, 0x06, 0x00])],
-    ['sqlite', Buffer.from([0x53, 0x51, 0x4c, 0x69, 0x74, 0x65, 0x33, 0x00])],
-    ['zip', Buffer.from([0x50, 0x4b, 0x03, 0x04])],
-    ['rar', Buffer.from([0x52, 0x41, 0x52, 0x20])],
-    ['tar', Buffer.from([0x75, 0x73, 0x74, 0x61, 0x72])],
-    ['mp3', Buffer.from([0x49, 0x44, 0x33])],
-    ['wav', Buffer.from([0x52, 0x49, 0x46, 0x46])],
-    ['flac', Buffer.from([0x46, 0x4c, 0x41, 0x43])],
-    ['aac', Buffer.from([0x00, 0x00, 0xff, 0xf1])]
-  ]);
-  /**
-   * Creates a new File instance with a provided buffer.
+   * Creates a new FSBytes instance with a provided buffer.
    *
-   * @param {Buffer} buffer The buffer containing the file's contents. MUST contain at least the first 12 bytes of the file.
+   * @param {Buffer} buffer The buffer containing the file's contents. MUST contain at least the first 24 bytes of the file.
    */
   constructor(buffer: Buffer) {
-    this._buffer = buffer;
+    if (buffer.length < 24) {
+      throw new Error('Buffer must contain at least 24 bytes');
+    }
+    this._buffer = buffer.subarray(0, 24);
   }
 
   /**
-   * Determines if the file is of the specified type.
+   * Determines the file type based on the file header.
    *
-   * @param {string} type The file type to check (e.g., 'pdf', 'jpeg', 'gif').
-   * @returns {boolean} True if the file is of the specified type, false otherwise.
+   * @returns {FileType | null} The file type, or null if it cannot be determined.
    */
-  isType(type: string): boolean {
-    const header = FSBytes.fileHeaders.get(type.toLowerCase());
-    if (!header) {
-      throw new Error(`Unsupported file type: ${type}`);
+  getType(): FileType | null {
+    for (const [type, fileHeader] of FILE_HEADERS) {
+      if (this.matchesHeader(fileHeader.buffer)) {
+        switch (type) {
+          case 'jpg':
+          case 'jpeg':
+            return this.getJPEGType();
+          case 'jp2':
+          case 'j2k':
+          case 'jpf':
+            return this.getJPEG2000Type();
+          case 'wav':
+          case 'avi':
+            return this.getWavOrAviType();
+          case 'mp4':
+            return this.getMP4Type();
+          case 'webp':
+            return this.getWebPType();
+          default:
+            return type;
+        }
+      }
     }
-    return this._buffer.subarray(0, header.length).equals(header);
+    return null;
+  }
+
+  private matchesHeader(headerBuffer: Buffer | Buffer[]): boolean {
+    if (Array.isArray(headerBuffer)) {
+      return headerBuffer.some((buffer) => this.startsWith(buffer));
+    } else {
+      return this.startsWith(headerBuffer);
+    }
+  }
+
+  private startsWith(buffer: Buffer): boolean {
+    return this._buffer.subarray(0, buffer.length).equals(buffer);
+  }
+
+  private getJPEG2000Type(): FileType {
+    const ftypBox = this._buffer.subarray(20, 24).toString('ascii');
+    switch (ftypBox) {
+      case 'jp2 ':
+        return 'jp2';
+      case 'jpx ':
+        return 'jpf';
+      default:
+        return 'j2k'; // Default to j2k if we can't determine the specific type
+    }
+  }
+
+  private getJPEGType(): FileType | null {
+    const exifMarker = this._buffer.subarray(2, 4).toString('hex');
+    return exifMarker === 'ffe1' ? 'jpg' : 'jpeg';
+  }
+
+  private getMP4Type(): FileType | null {
+    const ftypStart = this._buffer.indexOf(Buffer.from('ftyp'));
+    if (ftypStart > 0 && ftypStart < 8) {
+      return 'mp4';
+    }
+    return null;
+  }
+
+  private getWebPType(): FileType | null {
+    if (this._buffer.subarray(8, 12).toString() === 'WEBP') {
+      return 'webp';
+    }
+    return null;
+  }
+
+  private getWavOrAviType(): FileType | null {
+    if (
+      this._buffer.subarray(0, 4).toString('ascii') === 'RIFF' &&
+      this._buffer.subarray(8, 12).toString('ascii') === 'WAVE'
+    ) {
+      return 'wav';
+    } else if (
+      this._buffer.subarray(0, 4).toString('ascii') === 'RIFF' &&
+      this._buffer.subarray(8, 12).toString('ascii') === 'AVI '
+    ) {
+      return 'avi';
+    }
+    return null;
+  }
+
+  /**
+   * Determines the file category based on the file header.
+   *
+   * @returns {FileCategory | null} The file category, or null if it cannot be determined.
+   */
+  getCategory(): FileCategory | null {
+    const type = this.getType();
+    if (type) {
+      const fileHeader = FILE_HEADERS.get(type);
+      if (fileHeader) {
+        return fileHeader.category;
+      }
+    }
+    return null;
   }
 }

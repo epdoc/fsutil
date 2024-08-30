@@ -341,14 +341,14 @@ export class FSItem {
   /**
  * Asynchronously reads a specified number of bytes from the file and returns
  * them as an FSBytes instance. In order to determine what type of file this is,
- * at least 12 bytes must be read.
+ * at least 24 bytes must be read.
 
- * @param {number} [length=12] The number of bytes to read from the file.
- * Defaults to 12.
+ * @param {number} [length=24] The number of bytes to read from the file.
+ * Defaults to 24.
  * @returns {Promise<FSBytes>} A promise that resolves with an FSBytes instance
  * containing the read bytes, or rejects with an error.
  */
-  getBytes(length = 12): Promise<FSBytes> {
+  getBytes(length = 24): Promise<FSBytes> {
     return this.readBytes(length).then((buffer) => {
       return new FSBytes(buffer);
     });
