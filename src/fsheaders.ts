@@ -1,11 +1,35 @@
 import { Integer } from '@epdoc/typeutil';
 import { Buffer } from 'buffer';
 
+/**
+ * Represents an entry in the file header map.
+ */
 export type FileHeaderEntry = {
+  /**
+   * The type of the file (e.g., 'pdf', 'jpg', etc.). This is not the same as mime type.
+   */
   type: FileType;
+
+  /**
+   * The category of the file (e.g., 'document', 'image', etc.).
+   */
   category: FileCategory;
+
+  /**
+   * The buffer containing the file's header bytes to match.
+   * Can be a single Buffer or an array of Buffers for multiple possible headers.
+   */
   buffer: Buffer | Buffer[];
+
+  /**
+   * Optional. The offset in bytes where the header should be checked.
+   * If not provided, the header is checked from the beginning of the file.
+   */
   offset?: Integer;
+
+  /**
+   * Optional. A human-readable name for the file type.
+   */
   name?: string;
 };
 
@@ -130,8 +154,24 @@ const fileHeaderEntries: [string, FileHeaderEntry][] = [
 
 export const FILE_HEADERS = new Map(fileHeaderEntries);
 
+/**
+ * Represents the supported file types for header detection.
+ * This type is derived from the keys of the FILE_HEADERS map.
+ *
+ * @typedef {('pdf'|'jpg'|'j2k'|'jp2'|'jpf'|'jpm'|'jpx'|'jxr'|'gif'|'png'|'webp'|
+ * 'heif'|'bmp'|'tiff'|'avif'|'mp4'|'avi'|'mov'|'flv'|'wmv'|'mkv'|'ogg'|'webm'|
+ * 'mpeg1'|'mpeg2'|'rtf'|'sqlite'|'zip'|'rar'|'tar'|'mp3'|'wav'|'flac'|'aac'|
+ * 'ai'|'psd'|'dylib'|'ttf'|'otf'|'woff'|'woff2'|'eot'|'ttc')} FileType
+ */
 export type FileType = (typeof fileHeaderEntries)[number][0];
 
+/**
+ * Represents the categories of files supported by the system.
+ * These categories group similar file types together.
+ *
+ * @typedef {('image'|'video'|'audio'|'document'|'spreadsheet'|'presentation'|
+ * 'database'|'archive'|'executable'|'font'|'script'|'data')} FileCategory
+ */
 export type FileCategory =
   | 'image'
   | 'video'
