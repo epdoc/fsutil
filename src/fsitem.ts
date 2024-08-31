@@ -687,6 +687,10 @@ export class FSItem {
     }
   }
 
+  /**
+   * Sorts the folders of this FSItem alphabetically. Run getChildren() first.
+   * @returns {this} The current FSItem instance.
+   */
   public sortFolders(): this {
     this.folders.sort((a, b) => {
       return compareDictValue(a, b, 'filename');
@@ -694,12 +698,21 @@ export class FSItem {
     return this;
   }
 
+  /**
+   * Sorts the files of this FSItem alphabetically.
+   * @returns {this} The current FSItem instance.
+   */
   public sortFiles(): this {
     this.files.sort((a, b) => {
       return compareDictValue(a, b, 'filename');
     });
     return this;
   }
+
+  /**
+   * Sorts the files of this FSItem by size. Run getChildren() first.
+   * @returns {this} The current FSItem instance.
+   */
   public sortFilesBySize(): this {
     this.files.sort((a, b) => {
       return compareDictValue(a, b, 'size');
@@ -709,6 +722,7 @@ export class FSItem {
 
   /**
    * For files, calculate the checksum of this file
+   * @returns {Promise<string>} A promise that resolves with the checksum of the file.
    */
   async checksum() {
     return new Promise((resolve, reject) => {
@@ -726,6 +740,7 @@ export class FSItem {
   /**
    * For PDF files, gets the Creation Date of this file file by reading it's
    * metadata.
+   * @returns {Promise<Date | undefined>} A promise that resolves with the creation date of the PDF file, or undefined if not found.
    */
   async getPdfDate(): Promise<Date | undefined> {
     return new Promise((resolve, reject) => {
@@ -749,6 +764,7 @@ export class FSItem {
   /**
    * Use checksums to test if this file is equal to path2
    * @param path2
+   * @returns {Promise<boolean>} A promise that resolves with true if the files are equal, false otherwise.
    */
   async filesEqual(path2: FilePath): Promise<boolean> {
     return new Promise((resolve, reject) => {
@@ -805,12 +821,20 @@ export class FSItem {
     });
   }
 
+  /**
+   * Reads the entire file as a buffer.
+   * @returns {Promise<Buffer>} A promise that resolves with the file contents as a buffer.
+   */
   async readAsBuffer(): Promise<Buffer> {
     return readFile(this._f).catch((err) => {
       throw this.newError(err);
     });
   }
 
+  /**
+   * Reads the entire file as a string.
+   * @returns {Promise<string>} A promise that resolves with the file contents as a string.
+   */
   async readAsString(): Promise<any> {
     return new Promise((resolve, reject) => {
       fs.readFile(this._f, 'utf8', (err, data) => {
@@ -824,6 +848,10 @@ export class FSItem {
     });
   }
 
+  /**
+   * Reads the file as JSON and parses it.
+   * @returns {Promise<any>} A promise that resolves with the parsed JSON content.
+   */
   async readJson(): Promise<any> {
     return new Promise((resolve, reject) => {
       fs.readFile(this._f, 'utf8', (err, data) => {
@@ -841,12 +869,23 @@ export class FSItem {
     });
   }
 
+  /**
+   * Reads the file as JSON, parses it, and performs a deep copy with optional transformations.
+   * @param {FsDeepCopyOpts} [opts={}] - Options for the deep copy operation.
+   * @returns {Promise<any>} A promise that resolves with the deeply copied and transformed JSON content.
+   */
   async deepReadJson(opts: FsDeepCopyOpts = {}): Promise<any> {
     return this.readJson().then((resp) => {
       return this.deepCopy(resp, opts);
     });
   }
 
+  /**
+   * Performs a deep copy of the given data with optional transformations.
+   * @param {any} a - The data to deep copy.
+   * @param {FsDeepCopyOpts} [options] - Options for the deep copy operation.
+   * @returns {Promise<any>} A promise that resolves with the deeply copied and transformed data.
+   */
   private async deepCopy(a: any, options?: FsDeepCopyOpts): Promise<any> {
     let opts: FsDeepCopyOpts = deepCopySetDefaultOpts(options);
     const urlTest = new RegExp(`^${opts.pre}(file|http|https):\/\/(.+)${opts.post}$`, 'i');
@@ -883,15 +922,31 @@ export class FSItem {
     }
   }
 
+  /**
+   * Writes JSON data to the file.
+   * @param {any} data - The data to write as JSON.
+   * @returns {Promise<void>} A promise that resolves when the write operation is complete.
+   */
   async writeJson(data: any): Promise<void> {
     const buf = Buffer.from(JSON.stringify(data, null, 2), 'utf8');
     return fs.promises.writeFile(this._f, buf);
   }
 
+  /**
+   * Writes base64-encoded data to the file.
+   * @param {string} data - The base64-encoded data to write.
+   * @returns {Promise<void>} A promise that resolves when the write operation is complete.
+   */
   async writeBase64(data: string): Promise<void> {
     return this.write(data, 'base64');
   }
 
+  /**
+   * Writes data to the file with the specified encoding.
+   * @param {string | string[]} data - The data to write.
+   * @param {BufferEncoding} [type='utf8'] - The encoding to use.
+   * @returns {Promise<void>} A promise that resolves when the write operation is complete.
+   */
   async write(data: string | string[], type: BufferEncoding = 'utf8'): Promise<void> {
     if (isArray(data)) {
       data = data.join('\n');
@@ -951,9 +1006,9 @@ export class FSItem {
    * Finds the next available indexed filename. For example, for `filename.ext`,
    * tries `filename-01.ext`, `filename-02.ext`, etc until it finds a filename
    * that is not used.
-   * @param {Integer} limit
-   * @param {string} sep
-   * @returns - Promise with an available file path, or undefined if not found
+   * @param {Integer} [limit=32] - The maximum number of attempts to find an available filename.
+   * @param {string} [sep='-'] - The separator to use between the filename and the index.
+   * @returns {Promise<FilePath | undefined>} A promise that resolves with an available file path, or undefined if not found.
    */
   async findAvailableIndexFilename(limit: Integer = 32, sep: string = '-'): Promise<FilePath | undefined> {
     let newFsDest: FSItem | undefined;
@@ -971,9 +1026,9 @@ export class FSItem {
   /**
    * Copy an existing file or directory to a new location. Optionally creates a
    * backup if there is an existing file or directory at `destFile`.
-   * @param destFile
-   * @param {SafeCopyOpts} opts
-   * @returns True if file was copied or moved, false otherwise
+   * @param {FilePath | FSItem} destFile - The destination file or directory.
+   * @param {SafeCopyOpts} [opts={}] - Options for the copy or move operation.
+   * @returns {Promise<boolean | undefined>} A promise that resolves with true if the file was copied or moved, false otherwise.
    */
   async safeCopy(destFile: FilePath | FSItem, opts: SafeCopyOpts = {}): Promise<boolean | undefined> {
     await this.getStats();
@@ -1017,6 +1072,12 @@ export class FSItem {
     return Promise.resolve(false);
   }
 
+  /**
+   * Creates a new Error with the specified code and message, including the file path.
+   * @param {any} code - The error code or Error object.
+   * @param {string} [message] - The error message.
+   * @returns {Error} A new Error object.
+   */
   newError(code: any, message?: string): Error {
     if (isError(code)) {
       code.message = `${code.message}: ${this._f}`;
