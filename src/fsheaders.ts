@@ -1,3 +1,4 @@
+import { Integer } from '@epdoc/typeutil';
 import { Buffer } from 'buffer';
 
 export type FileCategory =
@@ -16,14 +17,15 @@ export type FileCategory =
 
 export type FileType = string;
 
-export const FILE_HEADERS: ReadonlyMap<
-  string,
-  {
-    type: FileType;
-    category: FileCategory;
-    buffer: Buffer | Buffer[];
-  }
-> = new Map([
+export type FileHeaderEntry = {
+  type: FileType;
+  category: FileCategory;
+  buffer: Buffer | Buffer[];
+  offset?: Integer;
+  name?: string;
+};
+
+export const FILE_HEADERS: ReadonlyMap<string, FileHeaderEntry> = new Map([
   ['pdf', { type: 'pdf', category: 'document', buffer: Buffer.from([0x25, 0x50, 0x44, 0x46, 0x2d]) }],
   [
     'jpg',
@@ -33,9 +35,60 @@ export const FILE_HEADERS: ReadonlyMap<
       buffer: Buffer.from([0xff, 0xd8, 0xff])
     }
   ],
-  ['jp2', { type: 'jp2', category: 'image', buffer: Buffer.from([0x00, 0x00, 0x00, 0x0c, 0x6a, 0x50, 0x20, 0x20]) }],
-  ['j2k', { type: 'j2k', category: 'image', buffer: Buffer.from([0x00, 0x00, 0x00, 0x0c, 0x6a, 0x50, 0x20, 0x20]) }],
-  ['jpf', { type: 'jpf', category: 'image', buffer: Buffer.from([0x00, 0x00, 0x00, 0x0c, 0x6a, 0x50, 0x20, 0x20]) }],
+  [
+    'j2k',
+    {
+      type: 'j2k',
+      category: 'image',
+      buffer: Buffer.from([0x00, 0x00, 0x00, 0x0c, 0x6a, 0x50, 0x20, 0x20]),
+      name: 'JPEG 2000 Code Stream'
+    }
+  ],
+  [
+    'jp2',
+    {
+      type: 'jp2',
+      category: 'image',
+      buffer: Buffer.from([0x00, 0x00, 0x00, 0x0c, 0x6a, 0x50, 0x20, 0x20]),
+      name: 'JPEG 2000 Part 1'
+    }
+  ],
+  [
+    'jpf',
+    {
+      type: 'jpf',
+      category: 'image',
+      buffer: Buffer.from([0x00, 0x00, 0x00, 0x0c, 0x6a, 0x50, 0x20, 0x20]),
+      name: 'JPEG 2000 Part 2'
+    }
+  ],
+  [
+    'jpm',
+    {
+      type: 'jpm',
+      category: 'image',
+      buffer: Buffer.from([0x00, 0x00, 0x00, 0x0c, 0x6a, 0x50, 0x20, 0x20]),
+      name: 'JPEG 2000 Part 6'
+    }
+  ],
+  // [
+  //   'mj2',
+  //   {
+  //     type: 'mj2',
+  //     category: 'video',
+  //     buffer: Buffer.from([0x00, 0x00, 0x00, 0x0c, 0x6a, 0x50, 0x20, 0x20]),
+  //     name: 'JPEG 2000 Part 3'
+  //   }
+  // ],
+  [
+    'jpx',
+    {
+      type: 'jpx',
+      category: 'image',
+      buffer: Buffer.from([0x00, 0x00, 0x00, 0x0c, 0x6a, 0x50, 0x20, 0x20]),
+      name: 'JPEG 2000 Part 4'
+    }
+  ],
   ['jxr', { type: 'jxr', category: 'image', buffer: Buffer.from([0xff, 0x52, 0x49, 0x46, 0x46]) }],
   ['gif', { type: 'gif', category: 'image', buffer: [Buffer.from('GIF87a'), Buffer.from('GIF89a')] }],
   ['png', { type: 'png', category: 'image', buffer: Buffer.from('\x89PNG\x0D\x0A\x1A\x0A') }],
@@ -58,7 +111,7 @@ export const FILE_HEADERS: ReadonlyMap<
   ['bmp', { type: 'bmp', category: 'image', buffer: Buffer.from('BM') }],
   ['tiff', { type: 'tiff', category: 'image', buffer: Buffer.from([0x49, 0x49, 0x2a, 0x00]) }],
   ['avif', { type: 'avif', category: 'image', buffer: Buffer.from([0x41, 0x56, 0x49, 0x46]) }],
-  ['mp4', { type: 'mp4', category: 'video', buffer: Buffer.from('mp42') }],
+  ['mp4', { type: 'mp4', category: 'video', buffer: Buffer.from('ftyp'), offset: 4 }],
   ['avi', { type: 'avi', category: 'video', buffer: Buffer.from('RIFF') }],
   ['mov', { type: 'mov', category: 'video', buffer: Buffer.from('moov') }],
   ['flv', { type: 'flv', category: 'video', buffer: Buffer.from('FLV\x01') }],

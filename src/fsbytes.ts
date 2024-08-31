@@ -1,4 +1,4 @@
-import { FILE_HEADERS, FileCategory, FileType } from './fsheaders';
+import { FILE_HEADERS, FileCategory, FileHeaderEntry, FileType } from './fsheaders';
 
 /**
  * A class representing the bytes in a file.
@@ -28,7 +28,7 @@ export class FSBytes {
    */
   getType(): FileType | null {
     for (const [type, fileHeader] of FILE_HEADERS) {
-      if (this.matchesHeader(fileHeader.buffer)) {
+      if (this.matchesHeader(fileHeader as FileHeaderEntry)) {
         switch (type) {
           case 'jpg':
           case 'jpeg':
@@ -52,16 +52,17 @@ export class FSBytes {
     return null;
   }
 
-  private matchesHeader(headerBuffer: Buffer | Buffer[]): boolean {
-    if (Array.isArray(headerBuffer)) {
-      return headerBuffer.some((buffer) => this.startsWith(buffer));
+  private matchesHeader(fileHeader: FileHeaderEntry): boolean {
+    const { buffer, offset = 0 } = fileHeader;
+    if (Array.isArray(buffer)) {
+      return buffer.some((buf) => this.startsWith(buf, offset));
     } else {
-      return this.startsWith(headerBuffer);
+      return this.startsWith(buffer, offset);
     }
   }
 
-  private startsWith(buffer: Buffer): boolean {
-    return this._buffer.subarray(0, buffer.length).equals(buffer);
+  private startsWith(buffer: Buffer, offset: number): boolean {
+    return this._buffer.subarray(offset, offset + buffer.length).equals(buffer);
   }
 
   private getJPEG2000Type(): FileType {
@@ -71,6 +72,8 @@ export class FSBytes {
         return 'jp2';
       case 'jpx ':
         return 'jpf';
+      case 'jpm ':
+        return 'jpm';
       default:
         return 'j2k'; // Default to j2k if we can't determine the specific type
     }
@@ -81,12 +84,27 @@ export class FSBytes {
     return exifMarker === 'ffe1' ? 'jpg' : 'jpeg';
   }
 
-  private getMP4Type(): FileType | null {
+  private getMP4Type(): FileType {
     const ftypStart = this._buffer.indexOf(Buffer.from('ftyp'));
-    if (ftypStart > 0 && ftypStart < 8) {
-      return 'mp4';
+    if (ftypStart >= 4 && ftypStart <= 8) {
+      const brand = this._buffer.subarray(ftypStart + 4, ftypStart + 8).toString();
+      switch (brand) {
+        case 'mp41':
+        case 'mp42':
+        case 'isom':
+        case 'iso2':
+        case 'avc1':
+        case 'mmp4':
+          return 'mp4';
+        case 'M4V ':
+          return 'm4v';
+        case 'M4A ':
+          return 'm4a';
+        default:
+          return 'mp4';
+      }
     }
-    return null;
+    return 'mp4';
   }
 
   private getWebPType(): FileType | null {
