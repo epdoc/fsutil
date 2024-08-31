@@ -676,10 +676,10 @@ export class FSItem {
    */
   public sortChildren(opts: FSSortOpts = {}) {
     this.sortFolders();
-    if (opts.type === 'alphabetical') {
-      this.sortFiles();
-    } else if (opts.type === 'size') {
+    if (opts.type === 'size') {
       this.sortFilesBySize();
+    } else {
+      this.sortFiles();
     }
     if (opts.direction === 'descending') {
       this.folders.reverse();
@@ -962,7 +962,9 @@ export class FSItem {
    * @returns {Promise<FilePath | boolean>} - Path to file if file was backed
    * up, or true if the file didn't exist
    */
-  async backup(opts: FileConflictStrategy = { type: 'error', errorIfExists: true }): Promise<FilePath | boolean> {
+  async backup(
+    opts: FileConflictStrategy = { type: 'renameWithTilde', errorIfExists: false }
+  ): Promise<FilePath | boolean> {
     await this.getStats();
 
     if (this._stats && this._stats.exists()) {

@@ -1,22 +1,6 @@
 import { Integer } from '@epdoc/typeutil';
 import { Buffer } from 'buffer';
 
-export type FileCategory =
-  | 'image'
-  | 'video'
-  | 'audio'
-  | 'document'
-  | 'spreadsheet'
-  | 'presentation'
-  | 'database'
-  | 'archive'
-  | 'executable'
-  | 'font'
-  | 'script'
-  | 'data';
-
-export type FileType = string;
-
 export type FileHeaderEntry = {
   type: FileType;
   category: FileCategory;
@@ -25,7 +9,7 @@ export type FileHeaderEntry = {
   name?: string;
 };
 
-export const FILE_HEADERS: ReadonlyMap<string, FileHeaderEntry> = new Map([
+const fileHeaderEntries: [string, FileHeaderEntry][] = [
   ['pdf', { type: 'pdf', category: 'document', buffer: Buffer.from([0x25, 0x50, 0x44, 0x46, 0x2d]) }],
   [
     'jpg',
@@ -142,4 +126,22 @@ export const FILE_HEADERS: ReadonlyMap<string, FileHeaderEntry> = new Map([
   ['woff2', { category: 'font', type: 'woff2', buffer: Buffer.from([0x77, 0x4f, 0x46, 0x32]) }],
   ['eot', { category: 'font', type: 'eot', buffer: Buffer.from([0x45, 0x4f, 0x54, 0x54]) }],
   ['ttc', { category: 'font', type: 'ttc', buffer: Buffer.from([0x00, 0x01, 0x00, 0x00]) }]
-]);
+] as const;
+
+export const FILE_HEADERS = new Map(fileHeaderEntries);
+
+export type FileType = (typeof fileHeaderEntries)[number][0];
+
+export type FileCategory =
+  | 'image'
+  | 'video'
+  | 'audio'
+  | 'document'
+  | 'spreadsheet'
+  | 'presentation'
+  | 'database'
+  | 'archive'
+  | 'executable'
+  | 'font'
+  | 'script'
+  | 'data';

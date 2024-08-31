@@ -7,6 +7,9 @@ import { FSItem, FSStats, SafeCopyOpts, fsitem, isFilePath, isFilename, isFolder
 import { fileConflictStrategyType } from './../src/types';
 
 const HOME = os.userInfo().homedir;
+const TEST_FILES = ['fs.test.ts', 'fs2.test.ts', 'fs3.test.ts', 'fsbytes.test.ts'];
+const TEST_FOLDERS = ['data', 'data1'];
+const TEST_FOLDERS2 = ['.withdot', 'folder-sample', 'test-files'];
 
 describe('fsitem', () => {
   beforeEach(async () => {
@@ -37,10 +40,11 @@ describe('fsitem', () => {
       })
       .then((resp) => {
         expect(isArray(resp)).toBe(true);
-        expect(resp.length).toBe(2);
+        expect(resp.length).toBe(TEST_FOLDERS.length);
         resp = resp.sort();
-        expect(resp[0].filename).toMatch(/data$/);
-        expect(resp[1].filename).toMatch(/data1$/);
+        expect(resp[0].filename).toBe(TEST_FOLDERS[0]);
+        expect(resp[1].filename).toBe(TEST_FOLDERS[1]);
+        // expect(resp[2].filename).toBe(TEST_FOLDERS[2]);
       });
   });
   test('fsGetFiles', () => {
@@ -54,18 +58,22 @@ describe('fsitem', () => {
       })
       .then((resp) => {
         expect(isArray(resp)).toBe(true);
-        expect(resp.length).toBe(2);
+        expect(resp.length).toBe(TEST_FILES.length);
         fs1.sortFiles();
-        expect(fs1.files[0].filename).toMatch(/fs\.test\.ts$/);
-        expect(fs1.files[1].filename).toMatch(/fsbytes\.test\.ts$/);
+        expect(fs1.files[0].filename).toBe(TEST_FILES[0]);
+        expect(fs1.files[1].filename).toBe(TEST_FILES[1]);
+        expect(fs1.files[2].filename).toBe(TEST_FILES[2]);
+        expect(fs1.files[3].filename).toBe(TEST_FILES[3]);
         return fs1.getChildren();
       })
       .then((resp) => {
         expect(isArray(resp)).toBe(true);
-        expect(resp.length).toBe(4);
+        expect(resp.length).toBe(TEST_FILES.length + 2);
         fs1.sortFiles();
-        expect(fs1.files[0].filename).toMatch(/fs\.test\.ts$/);
-        expect(fs1.files[1].filename).toMatch(/fsbytes\.test\.ts$/);
+        expect(fs1.files[0].filename).toBe(TEST_FILES[0]);
+        expect(fs1.files[1].filename).toBe(TEST_FILES[1]);
+        expect(fs1.files[2].filename).toBe(TEST_FILES[2]);
+        expect(fs1.files[3].filename).toBe(TEST_FILES[3]);
       });
   });
   test('getChildren', () => {
@@ -83,7 +91,7 @@ describe('fsitem', () => {
         expect(isArray(resp)).toBe(true);
         expect(isArray(fs1.files)).toBe(true);
         expect(isArray(fs1.folders)).toBe(true);
-        expect(fs1.files.length).toBe(2);
+        expect(fs1.files.length).toBe(TEST_FILES.length);
         expect(fs1.folders.length).toBe(2);
         fs1.sortFolders();
         expect(fs1.folders[0].filename).toMatch('data');
@@ -171,7 +179,7 @@ describe('fsitem', () => {
         expect(stats.isDirectory()).toBe(true);
         expect(stats.isFile()).toBe(false);
         expect(isValidDate(stats.createdAt())).toBe(true);
-        expect(stats.size).toBe(192);
+        expect(stats.size).toBe(256);
       });
   });
   test('constructor with .folder', () => {

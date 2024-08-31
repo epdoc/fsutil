@@ -1,7 +1,7 @@
 {
   "name": "@epdoc/fsutil",
-  "version": "4.4.0",
-  "description": "File system entry wrapper",
+  "version": "4.5.1",
+  "description": "File system path wrapper",
   "keywords": [
     "fs",
     "util",
