@@ -250,6 +250,7 @@ export class FSItem {
   /**
    * Get the list of FSItem files that matched a previous call to getFiles() or
    * getChildren().
+   * @returns {FSItem[]} Array of FSItem objects representing files.
    */
   get files(): FSItem[] {
     return this._files;
@@ -258,6 +259,7 @@ export class FSItem {
   /**
    * Get the list of filenames that matched a previous call to getFolders() or
    * getChildren().
+   * @returns {FileName[]} Array of filenames.
    */
   get filenames(): FileName[] {
     return this._files.map((fs) => {
@@ -268,6 +270,7 @@ export class FSItem {
   /**
    * Get the list of FSItem folders that matched a previous call to getFolders() or
    * getChildren().
+   * @returns {FSItem[]} Array of FSItem objects representing folders.
    */
   get folders(): FSItem[] {
     return this._folders;
@@ -276,6 +279,7 @@ export class FSItem {
   /**
    * Get the list of folder names that matched a previous call to getFolders() or
    * getChildren().
+   * @returns {FolderName[]} Array of folder names.
    */
   get folderNames(): FolderName[] {
     return this._folders.map((fs) => {
@@ -307,6 +311,7 @@ export class FSItem {
 
   /**
    * Tests the extension to see if this is a PDF file.
+   * @param {boolean} [testContents=false] If true, tests the file contents as well (not implemented).
    * @returns {boolean} True if the extension indicates this is a PDF file.
    */
   isPdf(testContents = false): boolean {
@@ -356,8 +361,8 @@ export class FSItem {
 
   /**
    * Set or change the extension of this file. `This` must be a file.
-   * @param ext The extension. The string may or may include a leading '.'.
-   * @returns
+   * @param {string} ext The extension. The string may or may not include a leading '.'.
+   * @returns {this} The current FSItem instance.
    */
   setExt(ext: string): this {
     if (!REG.leadingDot.test(ext)) {
@@ -372,8 +377,8 @@ export class FSItem {
 
   /**
    * Set or change the basename of this file. `This` must be a file.
-   * @param val The extension. The string may or may include a leading '.'.
-   * @returns
+   * @param {string} val The new basename for the file.
+   * @returns {this} The current FSItem instance.
    */
   setBasename(val: string): this {
     if (val !== this.basename) {
@@ -514,17 +519,17 @@ export class FSItem {
 
   /**
    * Ensures there is a folder with this path.
-   * @param options
-   * @returns
+   * @param {fx.EnsureDirOptions | number} [options] Options for ensuring the directory.
+   * @returns {Promise<unknown>} A promise that resolves when the directory is ensured.
    */
   async ensureDir(options?: fx.EnsureDirOptions | number): Promise<unknown> {
     return fx.ensureDir(this._f, options);
   }
 
   /**
-   * Syncronous version of `ensureDir`.
-   * @param options
-   * @returns
+   * Synchronous version of `ensureDir`.
+   * @param {fx.EnsureDirOptions | number} [options] Options for ensuring the directory.
+   * @returns {this} The current FSItem instance.
    */
   ensureDirSync(options?: fx.EnsureDirOptions | number): this {
     fx.ensureDirSync(this._f, options);
@@ -533,7 +538,7 @@ export class FSItem {
 
   /**
    * Removes this file or folder.
-   * @returns
+   * @returns {Promise<void>} A promise that resolves when the file or folder is removed.
    */
   async remove(): Promise<void> {
     return fx.remove(this._f);
@@ -664,6 +669,11 @@ export class FSItem {
       });
   }
 
+  /**
+   * Sorts the children (files and folders) of this FSItem.
+   * @param {FSSortOpts} [opts={}] - Sorting options.
+   * @returns {void}
+   */
   public sortChildren(opts: FSSortOpts = {}) {
     this.sortFolders();
     if (opts.type === 'alphabetical') {

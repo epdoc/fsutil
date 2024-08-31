@@ -42,26 +42,4 @@ describe('FSBytes', () => {
     expect(fsBytes.getType()).toBeNull();
     expect(fsBytes.getCategory()).toBeNull();
   });
-
-  // describe('JPEG 2000 file types', () => {
-  //   const jp2000Header = Buffer.from([0x00, 0x00, 0x00, 0x0c, 0x6a, 0x50, 0x20, 0x20]);
-
-  //   test('detects JP2 file', () => {
-  //     const buffer = Buffer.concat([jp2000Header, Buffer.from('0D0A870A00000014667479706A70320000 ', 'hex')]);
-  //     const fsBytes = new FSBytes(buffer);
-  //     expect(fsBytes.getType()).toBe('jp2');
-  //   });
-
-  //   test('detects JPF file', () => {
-  //     const buffer = Buffer.concat([jp2000Header, Buffer.from('0D0A870A00000014667479706A70780000 ', 'hex')]);
-  //     const fsBytes = new FSBytes(buffer);
-  //     expect(fsBytes.getType()).toBe('jpf');
-  //   });
-
-  //   test('detects J2K file', () => {
-  //     const buffer = Buffer.concat([jp2000Header, Buffer.from('0D0A870A00000014667479706A32320000 ', 'hex')]);
-  //     const fsBytes = new FSBytes(buffer);
-  //     expect(fsBytes.getType()).toBe('j2k');
-  //   });
-  // });
 });
