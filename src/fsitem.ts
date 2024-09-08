@@ -39,12 +39,14 @@ import {
   isFilePath,
   SafeCopyOpts
 } from './types';
+import { joinContinuationLines } from './util';
 
 const REG = {
   pdf: /\.pdf$/i,
   xml: /\.xml$/i,
   json: /\.json$/i,
   txt: /\.(txt|text)$/i,
+  lineSeparator: new RegExp(/\r?\0?\n/),
   leadingDot: new RegExp(/^\./),
   BOM: new RegExp(/^\uFEFF/)
 };
@@ -845,6 +847,25 @@ export class FSItem {
           resolve(data.replace(REG.BOM, '').toString());
         }
       });
+    });
+  }
+
+  /**
+   * Reads the file as a string and splits it into lines.
+   * @returns {Promise<string[]>} A promise that resolves with an array of lines.
+   */
+  async readAsLines(continuation?: string): Promise<string[]> {
+    return this.readAsString().then((data) => {
+      const lines = data.split(REG.lineSeparator).map((line) => {
+        // RSC output files are encoded oddly and this seems to clean them up
+        return line.replace(/\r/, '').replace(/\0/g, '');
+      });
+
+      if (continuation) {
+        return joinContinuationLines(lines, continuation);
+      } else {
+        return lines;
+      }
     });
   }
 

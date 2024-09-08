@@ -519,4 +519,19 @@ describe('fsitem', () => {
     expect(fsitem.isType('json', 'pdf')).toEqual(false);
     expect(fsitem.isType('txt', 'pdf')).toEqual(true);
   });
+
+  it('readAsLines', async () => {
+    const filePath = path.join(__dirname, 'data/test-files', 'continuation_sample.txt');
+    const fsItem = new FSItem(filePath);
+
+    const lines = await fsItem.readAsLines('\\');
+
+    expect(lines).toEqual([
+      'This is a line',
+      'This is a continued line that spans multiple lines',
+      'This is a normal line',
+      'Another continued line example',
+      'Final line'
+    ]);
+  });
 });

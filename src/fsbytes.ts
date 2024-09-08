@@ -22,11 +22,26 @@ export class FSBytes {
   }
 
   /**
+   * Determines both the file type and category based on the file header.
+   * @returns {[FileType | null, FileCategory | null]} A tuple containing the file type and category, or null if either cannot be determined.
+   */
+  public getTypeAndCategory(): [FileType | null, FileCategory | null] {
+    const type = this.getType();
+    if (type) {
+      const fileHeader = FILE_HEADERS.get(type);
+      if (fileHeader) {
+        return [type, fileHeader.category];
+      }
+    }
+    return [null, null];
+  }
+
+  /**
    * Determines the file type based on the file header.
    *
    * @returns {FileType | null} The file type, or null if it cannot be determined.
    */
-  getType(): FileType | null {
+  public getType(): FileType | null {
     for (const [type, fileHeader] of FILE_HEADERS) {
       if (this.matchesHeader(fileHeader as FileHeaderEntry)) {
         switch (type) {
@@ -47,6 +62,22 @@ export class FSBytes {
           default:
             return type;
         }
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Determines the file category based on the file header.
+   *
+   * @returns {FileCategory | null} The file category, or null if it cannot be determined.
+   */
+  public getCategory(): FileCategory | null {
+    const type = this.getType();
+    if (type) {
+      const fileHeader = FILE_HEADERS.get(type);
+      if (fileHeader) {
+        return fileHeader.category;
       }
     }
     return null;
@@ -125,22 +156,6 @@ export class FSBytes {
       this._buffer.subarray(8, 12).toString('ascii') === 'AVI '
     ) {
       return 'avi';
-    }
-    return null;
-  }
-
-  /**
-   * Determines the file category based on the file header.
-   *
-   * @returns {FileCategory | null} The file category, or null if it cannot be determined.
-   */
-  getCategory(): FileCategory | null {
-    const type = this.getType();
-    if (type) {
-      const fileHeader = FILE_HEADERS.get(type);
-      if (fileHeader) {
-        return fileHeader.category;
-      }
     }
     return null;
   }
