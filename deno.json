@@ -14,7 +14,7 @@
   "license": "MIT",
   "exports": "./mod.ts",
   "tasks": {
-    "test": "deno test --allow-env",
+    "test": "deno test --allow-env --allow-sys --allow-read --allow-write",
     "lint": "deno lint",
     "build": "deno run -A scripts/build_npm.ts",
     "publish_npm": "cd npm & npm publish --access public"

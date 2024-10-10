@@ -3,7 +3,7 @@ import { describe, test } from 'jsr:@std/testing/bdd';
 import { Buffer } from 'node:buffer';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { FSBytes, type FileCategory, type FileType } from '../mod.ts';
+import { type FileCategory, type FileType, FSBytes } from '../mod.ts';
 
 describe('FSBytes', () => {
   const testFilesDir = path.join(__dirname, 'data', 'test-files');

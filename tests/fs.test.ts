@@ -86,7 +86,7 @@ describe('fsitem', () => {
         expect(fs1.files[3].filename).toBe(TEST_FILES[3]);
       });
   });
-  test('getChildren', () => {
+  it('getChildren', () => {
     const fs0: FSItem = fsitem('.');
     const fs1 = fsitem('./tests');
     return fs0
@@ -104,7 +104,7 @@ describe('fsitem', () => {
         expect(fs1.files.length).toBe(TEST_FILES.length);
         expect(fs1.folders.length).toBe(2);
         fs1.sortFolders();
-        expect(fs1.folders[0].filename).toMatch('data');
+        expect(fs1.folders[0].filename).toMatch(/^data$/);
       });
   });
   test('setExt', () => {

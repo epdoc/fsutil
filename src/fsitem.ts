@@ -618,7 +618,7 @@ export class FSItem {
    * RegExp. If not specified then file and folder names are not filtered.
    * @return {Promise<FSItem[]> - Array of all files and folders within this folder
    */
-  async getChildren(options: Partial<GetChildrenOpts> = { levels: 1 }): Promise<FSItem[]> {
+  getChildren(options: Partial<GetChildrenOpts> = { levels: 1 }): Promise<FSItem[]> {
     const opts: GetChildrenOpts = {
       match: options.match,
       levels: isNumber(options.levels) ? options.levels - 1 : 0,
@@ -980,6 +980,7 @@ export class FSItem {
     if (isArray(data)) {
       data = data.join('\n');
     }
+    // @ts-ignore fight the type daemons later. this should be looked at.
     const buf = Buffer.from(data, type);
     return fs.promises.writeFile(this._f, buf);
   }
@@ -992,7 +993,7 @@ export class FSItem {
    * up, or true if the file didn't exist
    */
   async backup(
-    opts: FileConflictStrategy = { type: 'renameWithTilde', errorIfExists: false }
+    opts: FileConflictStrategy = { type: 'renameWithTilde', errorIfExists: false },
   ): Promise<FilePath | boolean> {
     await this.getStats();
 
