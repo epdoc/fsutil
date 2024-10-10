@@ -1,5 +1,5 @@
-import { DeepCopyOpts, Integer, isNonEmptyString } from '@epdoc/typeutil';
-import { FSItem } from './fsitem';
+import { type DeepCopyOpts, type Integer, isNonEmptyString } from '@epdoc/typeutil';
+import type { FSItem } from './fsitem.ts';
 
 /**
  * Represents a file path.
@@ -29,10 +29,10 @@ export type FolderName = string;
 /**
  * Type guard checks if the given value is a valid file name.
  *
- * @param {any} val The value to check.
+ * @param {unknown} val The value to check.
  * @returns True if the value is a non-empty string, false otherwise.
  */
-export function isFilename(val: any): val is FileName {
+export function isFilename(val: unknown): val is FileName {
   return isNonEmptyString(val);
 }
 
@@ -42,7 +42,7 @@ export function isFilename(val: any): val is FileName {
  * @param val The value to check.
  * @returns True if the value is a non-empty string, false otherwise.
  */
-export function isFolderPath(val: any): val is FolderPath {
+export function isFolderPath(val: unknown): val is FolderPath {
   return isNonEmptyString(val);
 }
 
@@ -52,12 +52,12 @@ export function isFolderPath(val: any): val is FolderPath {
  * @param val The value to check.
  * @returns True if the value is a non-empty string, false otherwise.
  */
-export function isFilePath(val: any): val is FilePath {
+export function isFilePath(val: unknown): val is FilePath {
   return isNonEmptyString(val);
 }
 
 export type FsDeepCopyOpts = DeepCopyOpts & {
-  includeUrl?: any;
+  includeUrl?: unknown;
 };
 
 /**
@@ -76,7 +76,7 @@ export const fileConflictStrategyType = {
   renameWithTilde: 'renameWithTilde',
   renameWithNumber: 'renameWithNumber',
   overwrite: 'overwrite',
-  error: 'error'
+  error: 'error',
 } as const;
 
 /**
@@ -96,7 +96,7 @@ export function isFileConflictStrategyType(value: unknown): value is FileConflic
 }
 
 // export type BackupOpts = Partial<{
-//   /** Do a simple backup by renaming the file with a `~` appended, overwriting any previous backups with this same name. If a string then append this string. */
+//   /** Do a simple backup by renaming the file with a `~` appended, overwriting unknown previous backups with this same name. If a string then append this string. */
 //   backup: boolean | string;
 //   /** If set and backup is not set, do a backup by renaming the file with a count appended to it's `basename`. If an integer, only allow this many counts to be tried. */
 //   index: boolean | Integer;
@@ -138,7 +138,7 @@ export type SafeCopyOpts = {
   ensureParentDirs?: boolean;
   /**
    * Don't actually move or copy the file, just execute the logic around it
-   * */
+   */
   test?: boolean;
 };
 
@@ -147,10 +147,16 @@ export type FSSortOpts = {
   direction?: 'ascending' | 'descending';
 };
 
-export type FSItemCallback = (fs: FSItem) => Promise<any>;
+export type FSItemCallback = (fs: FSItem) => Promise<unknown>;
 export type GetChildrenOpts = FSSortOpts & {
   match: RegExp | string | undefined;
   levels: Integer;
   sort?: FSSortOpts;
   callback?: FSItemCallback;
 };
+
+export type RemoveOpts = Partial<{
+  maxRetries: Integer;
+  recursive: boolean;
+  retryDelay: Integer;
+}>;

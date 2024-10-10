@@ -7,11 +7,11 @@
  * @returns The joined lines.
  */
 export function joinContinuationLines(lines: string[], continuation: string | RegExp): string[] {
-  let regex = typeof continuation === 'string' ? new RegExp('^(.*)' + continuation + '\\s*$') : continuation;
-  let result: string[] = [];
+  const regex = typeof continuation === 'string' ? new RegExp('^(.*)' + continuation + '\\s*$') : continuation;
+  const result: string[] = [];
   for (let idx = 0; idx < lines.length; ++idx) {
     let line = lines[idx];
-    let p = line.match(regex);
+    const p = line.match(regex);
     if (p) {
       line = p[1];
       if (idx + 1 < lines.length) {

@@ -1,6 +1,8 @@
-import * as fs from 'fs/promises';
-import * as path from 'path';
-import { fsitem, FSItem } from '../src/fsitem';
+import { expect } from 'jsr:@std/expect';
+import { afterAll, beforeAll, describe, test } from 'jsr:@std/testing/bdd';
+import * as fs from 'node:fs/promises';
+import * as path from 'node:path';
+import { FSItem, fsitem } from '../mod.ts';
 
 describe('FSItem Additional Tests', () => {
   const testDir = path.join(__dirname, 'test-fsitem');

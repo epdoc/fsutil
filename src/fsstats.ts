@@ -1,4 +1,5 @@
-import { Integer } from '@epdoc/typeutil';
+import type { Integer } from '@epdoc/typeutil';
+import type fs from 'node:fs';
 
 /**
  * Object contains the [fs.Stats](https://nodejs.org/api/fs.html#class-fsstats)
@@ -8,17 +9,12 @@ import { Integer } from '@epdoc/typeutil';
  * Contains a number of property methods that do not require asynchronous calls.
  */
 export class FSStats {
-  protected _isFSStats = true;
-  public _stats: any;
+  public _stats: fs.Stats | undefined;
 
-  constructor(stats?: any) {
+  constructor(stats?: unknown) {
     if (stats) {
-      this._stats = stats;
+      this._stats = stats as fs.Stats;
     }
-  }
-
-  static isInstance(val: any): val is FSStats {
-    return val && val._isFSStats === true;
   }
 
   /**

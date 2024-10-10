@@ -1,4 +1,5 @@
-import { FILE_HEADERS, FileCategory, FileHeaderEntry, FileType } from './fsheaders';
+import { Buffer } from 'node:buffer';
+import { FILE_HEADERS, type FileCategory, type FileHeaderEntry, type FileType } from './fsheaders.ts';
 
 /**
  * A class representing the bytes in a file.

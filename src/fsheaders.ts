@@ -1,5 +1,5 @@
-import { Integer } from '@epdoc/typeutil';
-import { Buffer } from 'buffer';
+import type { Integer } from '@epdoc/typeutil';
+import { Buffer } from 'node:buffer';
 
 /**
  * Represents an entry in the file header map.
@@ -40,8 +40,8 @@ const fileHeaderEntries: [string, FileHeaderEntry][] = [
     {
       type: 'jpg',
       category: 'image',
-      buffer: Buffer.from([0xff, 0xd8, 0xff])
-    }
+      buffer: Buffer.from([0xff, 0xd8, 0xff]),
+    },
   ],
   [
     'j2k',
@@ -49,8 +49,8 @@ const fileHeaderEntries: [string, FileHeaderEntry][] = [
       type: 'j2k',
       category: 'image',
       buffer: Buffer.from([0x00, 0x00, 0x00, 0x0c, 0x6a, 0x50, 0x20, 0x20]),
-      name: 'JPEG 2000 Code Stream'
-    }
+      name: 'JPEG 2000 Code Stream',
+    },
   ],
   [
     'jp2',
@@ -58,8 +58,8 @@ const fileHeaderEntries: [string, FileHeaderEntry][] = [
       type: 'jp2',
       category: 'image',
       buffer: Buffer.from([0x00, 0x00, 0x00, 0x0c, 0x6a, 0x50, 0x20, 0x20]),
-      name: 'JPEG 2000 Part 1'
-    }
+      name: 'JPEG 2000 Part 1',
+    },
   ],
   [
     'jpf',
@@ -67,8 +67,8 @@ const fileHeaderEntries: [string, FileHeaderEntry][] = [
       type: 'jpf',
       category: 'image',
       buffer: Buffer.from([0x00, 0x00, 0x00, 0x0c, 0x6a, 0x50, 0x20, 0x20]),
-      name: 'JPEG 2000 Part 2'
-    }
+      name: 'JPEG 2000 Part 2',
+    },
   ],
   [
     'jpm',
@@ -76,8 +76,8 @@ const fileHeaderEntries: [string, FileHeaderEntry][] = [
       type: 'jpm',
       category: 'image',
       buffer: Buffer.from([0x00, 0x00, 0x00, 0x0c, 0x6a, 0x50, 0x20, 0x20]),
-      name: 'JPEG 2000 Part 6'
-    }
+      name: 'JPEG 2000 Part 6',
+    },
   ],
   // [
   //   'mj2',
@@ -94,8 +94,8 @@ const fileHeaderEntries: [string, FileHeaderEntry][] = [
       type: 'jpx',
       category: 'image',
       buffer: Buffer.from([0x00, 0x00, 0x00, 0x0c, 0x6a, 0x50, 0x20, 0x20]),
-      name: 'JPEG 2000 Part 4'
-    }
+      name: 'JPEG 2000 Part 4',
+    },
   ],
   ['jxr', { type: 'jxr', category: 'image', buffer: Buffer.from([0xff, 0x52, 0x49, 0x46, 0x46]) }],
   ['gif', { type: 'gif', category: 'image', buffer: [Buffer.from('GIF87a'), Buffer.from('GIF89a')] }],
@@ -105,16 +105,16 @@ const fileHeaderEntries: [string, FileHeaderEntry][] = [
     {
       type: 'webp',
       category: 'image',
-      buffer: Buffer.from([0x52, 0x49, 0x46, 0x46, 0x00, 0x00, 0x00, 0x00, 0x57, 0x45, 0x42, 0x50])
-    }
+      buffer: Buffer.from([0x52, 0x49, 0x46, 0x46, 0x00, 0x00, 0x00, 0x00, 0x57, 0x45, 0x42, 0x50]),
+    },
   ],
   [
     'heif',
     {
       type: 'heif',
       category: 'image',
-      buffer: Buffer.from([0x00, 0x00, 0x00, 0x0c, 0x6a, 0x50, 0x20, 0x20, 0x0d, 0x0a, 0x00, 0x00])
-    }
+      buffer: Buffer.from([0x00, 0x00, 0x00, 0x0c, 0x6a, 0x50, 0x20, 0x20, 0x0d, 0x0a, 0x00, 0x00]),
+    },
   ],
   ['bmp', { type: 'bmp', category: 'image', buffer: Buffer.from('BM') }],
   ['tiff', { type: 'tiff', category: 'image', buffer: Buffer.from([0x49, 0x49, 0x2a, 0x00]) }],
@@ -132,7 +132,11 @@ const fileHeaderEntries: [string, FileHeaderEntry][] = [
   ['rtf', { type: 'rtf', category: 'document', buffer: Buffer.from([0x7b, 0x5c, 0x72, 0x74, 0x66]) }],
   [
     'sqlite',
-    { type: 'sqlite', category: 'database', buffer: Buffer.from([0x53, 0x51, 0x4c, 0x69, 0x74, 0x65, 0x33, 0x00]) }
+    {
+      type: 'sqlite',
+      category: 'database',
+      buffer: Buffer.from([0x53, 0x51, 0x4c, 0x69, 0x74, 0x65, 0x33, 0x00]),
+    },
   ],
   ['zip', { type: 'zip', category: 'archive', buffer: Buffer.from([0x50, 0x4b, 0x03, 0x04]) }],
   ['rar', { type: 'rar', category: 'archive', buffer: Buffer.from([0x52, 0x41, 0x52, 0x20]) }],
@@ -141,7 +145,10 @@ const fileHeaderEntries: [string, FileHeaderEntry][] = [
   ['wav', { type: 'wav', category: 'audio', buffer: Buffer.from([0x52, 0x49, 0x46, 0x46]) }],
   ['flac', { type: 'flac', category: 'audio', buffer: Buffer.from([0x46, 0x4c, 0x41, 0x43]) }],
   ['aac', { type: 'aac', category: 'audio', buffer: Buffer.from([0x00, 0x00, 0xff, 0xf1]) }],
-  ['ai', { type: 'ai', category: 'image', buffer: Buffer.from([0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]) }],
+  [
+    'ai',
+    { type: 'ai', category: 'image', buffer: Buffer.from([0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]) },
+  ],
   ['psd', { type: 'psd', category: 'image', buffer: Buffer.from([0x38, 0x42, 0x50, 0x53]) }],
   ['dylib', { type: 'dylib', category: 'executable', buffer: Buffer.from([0xce, 0xfa, 0xed, 0xfe]) }],
   ['ttf', { category: 'font', type: 'ttf', buffer: Buffer.from([0x00, 0x01, 0x00, 0x00]) }],
@@ -149,7 +156,7 @@ const fileHeaderEntries: [string, FileHeaderEntry][] = [
   ['woff', { category: 'font', type: 'woff', buffer: Buffer.from([0x77, 0x4f, 0x46, 0x46]) }],
   ['woff2', { category: 'font', type: 'woff2', buffer: Buffer.from([0x77, 0x4f, 0x46, 0x32]) }],
   ['eot', { category: 'font', type: 'eot', buffer: Buffer.from([0x45, 0x4f, 0x54, 0x54]) }],
-  ['ttc', { category: 'font', type: 'ttc', buffer: Buffer.from([0x00, 0x01, 0x00, 0x00]) }]
+  ['ttc', { category: 'font', type: 'ttc', buffer: Buffer.from([0x00, 0x01, 0x00, 0x00]) }],
 ] as const;
 
 export const FILE_HEADERS = new Map(fileHeaderEntries);

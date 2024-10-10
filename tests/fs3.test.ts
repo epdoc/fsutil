@@ -1,7 +1,9 @@
-import * as fs from 'fs/promises';
-import * as path from 'path';
-import { fsitem } from '../src/fsitem';
-import { FSSortOpts } from '../src/types';
+import { expect } from 'jsr:@std/expect';
+import { afterAll, beforeAll, describe, test } from 'jsr:@std/testing/bdd';
+import { Buffer } from 'node:buffer';
+import * as fs from 'node:fs/promises';
+import * as path from 'node:path';
+import { fsitem, type FSSortOpts } from '../mod.ts';
 
 describe('FSItem Additional Tests', () => {
   const testDir = path.join(__dirname, 'data', 'test-fsitem');

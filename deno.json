@@ -1,0 +1,39 @@
+{
+  "name": "@epdoc/fsutil",
+  "version": "3.0.0",
+  "description": "File system entry wrapper",
+  "keywords": [
+    "filesystem",
+    "util",
+    "typescript"
+  ],
+  "author": {
+    "name": "James Pravetz",
+    "email": "jpravetz@epdoc.com"
+  },
+  "license": "MIT",
+  "exports": "./mod.ts",
+  "tasks": {
+    "test": "deno test --allow-env",
+    "lint": "deno lint",
+    "build": "deno run -A scripts/build_npm.ts",
+    "publish_npm": "cd npm & npm publish --access public"
+  },
+  "tests": {
+    "include": ["test/**/*.ts"]
+  },
+  "imports": {
+    "@epdoc/timeutil": "../timeutil/mod.ts",
+    "@epdoc/typeutil": "../typeutil/mod.ts",
+    "@std/assert": "jsr:@std/assert@1",
+    "@std/fs": "jsr:@std/fs@^1.0.4",
+    "@std/io": "jsr:@std/io@^0.225.0",
+    "checksum": "npm:checksum@^1.0.0",
+    "pdf2json": "npm:pdf2json@^3.1.4"
+  },
+  "fmt": {
+    "singleQuote": true,
+    "lineWidth": 120,
+    "exclude": ["tests/data"]
+  }
+}

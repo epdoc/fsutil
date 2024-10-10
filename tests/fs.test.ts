@@ -1,15 +1,25 @@
 import { dateUtil } from '@epdoc/timeutil';
-import { isDate, isValidDate } from '@epdoc/typeutil';
-import { isArray } from 'epdoc-util';
+import { isArray, isDate, isValidDate } from '@epdoc/typeutil';
+import { expect } from 'jsr:@std/expect';
+import { afterAll, beforeEach, describe, it, test } from 'jsr:@std/testing/bdd';
 import os from 'node:os';
 import path from 'node:path';
-import { FSItem, FSStats, SafeCopyOpts, fsitem, isFilePath, isFilename, isFolderPath } from './../src/index';
-import { fileConflictStrategyType } from './../src/types';
+import process from 'node:process';
+import {
+  FSItem,
+  fsitem,
+  FSStats,
+  isFilename,
+  isFilePath,
+  isFolderPath,
+  type SafeCopyOpts,
+} from './../mod.ts';
+import { fileConflictStrategyType } from './../src/types.ts';
 
 const HOME = os.userInfo().homedir;
 const TEST_FILES = ['fs.test.ts', 'fs2.test.ts', 'fs3.test.ts', 'fsbytes.test.ts'];
 const TEST_FOLDERS = ['data', 'data1'];
-const TEST_FOLDERS2 = ['.withdot', 'folder-sample', 'test-files'];
+const _TEST_FOLDERS2 = ['.withdot', 'folder-sample', 'test-files'];
 
 describe('fsitem', () => {
   beforeEach(async () => {
@@ -48,8 +58,8 @@ describe('fsitem', () => {
       });
   });
   test('fsGetFiles', () => {
-    let fs0: FSItem = fsitem('.');
-    let fs1 = fsitem('./tests');
+    const fs0: FSItem = fsitem('.');
+    const fs1 = fsitem('./tests');
     return fs0
       .getFolders()
       .then((resp) => {
@@ -77,8 +87,8 @@ describe('fsitem', () => {
       });
   });
   test('getChildren', () => {
-    let fs0: FSItem = fsitem('.');
-    let fs1 = fsitem('./tests');
+    const fs0: FSItem = fsitem('.');
+    const fs1 = fsitem('./tests');
     return fs0
       .getChildren()
       .then((resp) => {
@@ -114,7 +124,7 @@ describe('fsitem', () => {
   });
   test('isDir', () => {
     return Promise.resolve()
-      .then((resp) => {
+      .then((_resp) => {
         return fsitem('./tests').isDir();
       })
       .then((resp) => {
@@ -127,7 +137,7 @@ describe('fsitem', () => {
   });
   test('fsExists', () => {
     return Promise.resolve()
-      .then((resp) => {
+      .then((_resp) => {
         return fsitem('./tests').exists();
       })
       .then((resp) => {
@@ -140,7 +150,7 @@ describe('fsitem', () => {
   });
   test('fs dirExists', () => {
     return Promise.resolve()
-      .then((resp) => {
+      .then((_resp) => {
         return fsitem('./tests').dirExists();
       })
       .then((resp) => {
@@ -153,7 +163,7 @@ describe('fsitem', () => {
   });
   test('fs fileExists', () => {
     return Promise.resolve()
-      .then((resp) => {
+      .then((_resp) => {
         return fsitem('./tests').fileExists();
       })
       .then((resp) => {
@@ -170,11 +180,11 @@ describe('fsitem', () => {
   });
   test('fs Stats', () => {
     return Promise.resolve()
-      .then((resp) => {
+      .then((_resp) => {
         return fsitem('./tests').getStats();
       })
       .then((stats) => {
-        expect(FSStats.isInstance(stats)).toBe(true);
+        expect(stats instanceof FSStats).toBe(true);
         expect(stats.exists()).toBe(true);
         expect(stats.isDirectory()).toBe(true);
         expect(stats.isFile()).toBe(false);
@@ -184,7 +194,7 @@ describe('fsitem', () => {
   });
   test('constructor with .folder', () => {
     return Promise.resolve()
-      .then((resp) => {
+      .then((_resp) => {
         return fsitem('./tests').dirExists();
       })
       .then((resp) => {
@@ -199,25 +209,25 @@ describe('fsitem', () => {
         expect(resp).toBe(true);
       });
   });
-  it('constructor', () => {
+  test('constructor', () => {
     expect(fsitem('home', 'file.json').basename).toBe('file');
     expect(fsitem('/home', 'file.json').path).toBe('/home/file.json');
-  }, 1000);
-  it('constructor with HOME', () => {
+  });
+  test('constructor with HOME', () => {
     const fs = new FSItem().home().add('.folder').add('file.txt');
     expect(fs.path).toBe(path.resolve(HOME, '.folder', 'file.txt'));
     expect(fs.filename).toBe('file.txt');
     expect(fs.parts[0]).toEqual(HOME);
     expect(fs.parts[1]).toEqual('.folder');
     expect(fs.parts[2]).toEqual('file.txt');
-  }, 1000);
-  it('guards', () => {
+  });
+  test('guards', () => {
     expect(isFilename('hello')).toBe(true);
     expect(isFilePath('hello')).toBe(true);
     expect(isFilePath('~/xx/hello')).toBe(true);
     expect(isFolderPath('~/xx/hello')).toBe(true);
-  }, 1000);
-  it('isType', () => {
+  });
+  test('isType', () => {
     expect(fsitem('file.json').isType('json')).toBe(true);
     expect(fsitem('file.json').isType('jsson')).toBe(false);
     expect(fsitem('file.JSON').isType('jsson', 'json')).toBe(true);
@@ -237,10 +247,10 @@ describe('fsitem', () => {
     expect(fsitem('file.TXT').isTxt()).toBe(true);
     expect(fsitem('file.TXT').isNamed('file')).toBe(true);
     expect(fsitem('file.TXT').isNamed('TXT')).toBe(false);
-  }, 1000);
-  it('getPdfDate', () => {
+  });
+  test('getPdfDate', () => {
     return Promise.resolve()
-      .then((resp) => {
+      .then((_resp) => {
         return fsitem('./tests', 'data', '.withdot/text alignment.pdf').getPdfDate();
       })
       .then((resp) => {
@@ -248,15 +258,15 @@ describe('fsitem', () => {
         if (isDate(resp)) {
           process.env.TZ = 'CST';
           expect(new Date(resp).toISOString()).toBe('2018-02-01T00:00:00.000Z');
-          expect(dateUtil(resp).toISOLocaleString()).toBe('2018-01-31T18:00:00.000-06:00');
+          expect(dateUtil(resp).toISOLocalString()).toBe('2018-01-31T18:00:00.000-06:00');
         }
       })
       .catch((err) => {
         console.log(err);
         throw err;
       });
-  }, 1000);
-  it('ext', () => {
+  });
+  test('ext', () => {
     const fs = fsitem('./tests/xxx.jpg');
     fs.setExt('.txt');
     expect(fs.extname).toEqual('.txt');
@@ -266,30 +276,30 @@ describe('fsitem', () => {
     expect(fs.extname).toEqual('.jpg');
     fs.setExt('.jpg');
     expect(fs.extname).toEqual('.jpg');
-  }, 1000);
-  it('checksum', () => {
+  });
+  test('checksum', () => {
     return Promise.resolve()
-      .then((resp) => {
+      .then((_resp) => {
         return fsitem('./tests/data1/sample.txt').checksum();
       })
       .then((resp) => {
         expect(resp).toBe('cacc6f06ae07f842663cb1b1722cafbee9b4d203');
       });
-  }, 1000);
-  it('newError string', () => {
+  });
+  test('newError string', () => {
     const fs = new FSItem('my/path/to/file.txt');
     const err = fs.newError(23, 'my message');
-    // @ts-ignore
+    // @ts-ignore xxx
     expect(err.code).toEqual(23);
     expect(err.message).toEqual('my message: my/path/to/file.txt');
     expect(fs.parts.length).toEqual(1);
     expect(fs.parts[0]).toEqual('my/path/to/file.txt');
   });
-  it('newError Error', () => {
+  test('newError Error', () => {
     const fs = new FSItem('my/path/to', 'file.txt');
     const err0 = new Error('hello');
     const err = fs.newError(err0);
-    // @ts-ignore
+    // @ts-ignore xxx
     expect(err.code).toBeUndefined();
     const val = path.resolve('my/path/to', 'file.txt');
     expect(err.message).toEqual('hello: ' + val);
@@ -299,7 +309,7 @@ describe('fsitem', () => {
   });
   test('fsEqual', () => {
     return Promise.resolve()
-      .then((resp) => {
+      .then((_resp) => {
         return fsitem('./tests/fs.test.ts').filesEqual('./tests/fs.test.ts');
       })
       .then((resp) => {
@@ -316,17 +326,17 @@ describe('fsitem', () => {
   });
   test('fsEnsureDir fsitem.Remove', () => {
     return Promise.resolve()
-      .then((resp) => {
+      .then((_resp) => {
         return fsitem('./tests').ensureDir();
       })
-      .then((resp) => {
+      .then((_resp) => {
         return fsitem('./tests/data1/tmp1').ensureDir();
       })
-      .then((resp) => {
+      .then((_resp) => {
         return fsitem('./tests/data1/tmp1').isDir();
       })
-      .then((resp) => {
-        expect(resp).toBe(true);
+      .then((_resp) => {
+        expect(_resp).toBe(true);
         return fsitem('./tests/data1/tmp1').remove();
       })
       .then((resp) => {
@@ -339,10 +349,10 @@ describe('fsitem', () => {
   });
   test('fsEnsureDir no file', () => {
     return Promise.resolve()
-      .then((resp) => {
+      .then((_resp) => {
         return fsitem('./tests/data1/tmp.txt').ensureDir();
       })
-      .then((resp) => {
+      .then((_resp) => {
         return fsitem('./tests/data1/tmp.txt').isDir();
       })
       .then((resp) => {
@@ -359,7 +369,7 @@ describe('fsitem', () => {
   });
   test('fsCopy fsitem.Move', () => {
     return Promise.resolve()
-      .then((resp) => {
+      .then((_resp) => {
         return fsitem('./tests/data1').copyTo('./tests/data2', { preserveTimestamps: true });
       })
       .then((resp) => {
@@ -376,7 +386,9 @@ describe('fsitem', () => {
       })
       .then((resp) => {
         expect(resp).toEqual(true);
-        return fsitem('./tests/data2/folder-sample/sample2.txt').filesEqual('./tests/data1/folder-sample/sample2.txt');
+        return fsitem('./tests/data2/folder-sample/sample2.txt').filesEqual(
+          './tests/data1/folder-sample/sample2.txt'
+        );
       })
       .then((resp) => {
         expect(resp).toBe(true);
@@ -405,9 +417,9 @@ describe('fsitem', () => {
 
   test('safeCopy', () => {
     return Promise.resolve()
-      .then((resp) => {
+      .then((_resp) => {
         const opts: SafeCopyOpts = {
-          ensureParentDirs: true
+          ensureParentDirs: true,
         };
         return fsitem('./tests/data1').safeCopy('./tests/data2', opts);
       })
@@ -425,13 +437,15 @@ describe('fsitem', () => {
       })
       .then((resp) => {
         expect(resp).toEqual(true);
-        return fsitem('./tests/data2/folder-sample/sample2.txt').filesEqual('./tests/data1/folder-sample/sample2.txt');
+        return fsitem('./tests/data2/folder-sample/sample2.txt').filesEqual(
+          './tests/data1/folder-sample/sample2.txt'
+        );
       })
       .then((resp) => {
         expect(resp).toBe(true);
         const opts: SafeCopyOpts = {
           ensureParentDirs: false,
-          conflictStrategy: { type: fileConflictStrategyType.renameWithNumber, limit: 5 }
+          conflictStrategy: { type: fileConflictStrategyType.renameWithNumber, limit: 5 },
         };
         return fsitem('./tests/data1').safeCopy('./tests/data2', opts);
       })
@@ -457,13 +471,13 @@ describe('fsitem', () => {
     const json2 = await fsitem(DEST).readJson();
     expect(json2).toEqual(json);
   });
-  test('json err', async () => {
+  test('json err', () => {
     const SRC = './tests/data/.withdot/broken.json';
     return Promise.resolve()
-      .then((resp) => {
+      .then((_resp) => {
         return fsitem(SRC).readJson();
       })
-      .then((resp) => {
+      .then((_resp) => {
         expect(true).toBe(false);
       })
       .catch((err) => {
@@ -504,9 +518,9 @@ describe('fsitem', () => {
     console.log(str);
     expect(str).toEqual(result);
   });
-  test('path resolve', async () => {
-    const SRC = './tests/data/sample.json';
-    const result = 'This is sample.txt.\\nDo not edit or move this file.';
+  test('path resolve', () => {
+    const _SRC = './tests/data/sample.json';
+    const _result = 'This is sample.txt.\\nDo not edit or move this file.';
     const fsitem = new FSItem('/', 'the', 'path', 'goes', 'right.here.txt');
     expect(fsitem.path).toEqual('/the/path/goes/right.here.txt');
     expect(fsitem.dirname).toEqual('/the/path/goes');
@@ -531,7 +545,7 @@ describe('fsitem', () => {
       'This is a continued line that spans multiple lines',
       'This is a normal line',
       'Another continued line example',
-      'Final line'
+      'Final line',
     ]);
   });
 });

@@ -1,7 +1,9 @@
-import fs from 'fs';
-import path from 'path';
-import { FSBytes } from '../src/fsbytes';
-import { FileCategory, FileType } from '../src/fsheaders';
+import { expect } from 'jsr:@std/expect';
+import { describe, test } from 'jsr:@std/testing/bdd';
+import { Buffer } from 'node:buffer';
+import * as fs from 'node:fs';
+import * as path from 'node:path';
+import { FSBytes, type FileCategory, type FileType } from '../mod.ts';
 
 describe('FSBytes', () => {
   const testFilesDir = path.join(__dirname, 'data', 'test-files');

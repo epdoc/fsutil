@@ -3,8 +3,8 @@ import {
   compareDictValue,
   deepCopy,
   deepCopySetDefaultOpts,
-  Dict,
-  Integer,
+  type Dict,
+  type Integer,
   isArray,
   isDict,
   isError,
@@ -15,31 +15,32 @@ import {
   isObject,
   isRegExp,
   isString,
-  pad
+  pad,
 } from '@epdoc/typeutil';
+import * as dfs from '@std/fs';
 import checksum from 'checksum';
-import * as fx from 'fs-extra';
+import { Buffer } from 'node:buffer';
 import fs, { close } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import Pdfparser from 'pdf2json';
-import { FSBytes } from './fsbytes';
-import { FSStats } from './fsstats';
+import { FSBytes } from './fsbytes.ts';
+import { FSStats } from './fsstats.ts';
 import {
-  FileConflictStrategy,
+  type FileConflictStrategy,
   fileConflictStrategyType,
-  FileName,
-  FilePath,
-  FolderName,
-  FolderPath,
-  FsDeepCopyOpts,
-  FSSortOpts,
-  GetChildrenOpts,
+  type FileName,
+  type FilePath,
+  type FolderName,
+  type FolderPath,
+  type FsDeepCopyOpts,
+  type FSSortOpts,
+  type GetChildrenOpts,
   isFilePath,
-  SafeCopyOpts
-} from './types';
-import { joinContinuationLines } from './util';
+  type RemoveOpts,
+  type SafeCopyOpts,
+} from './types.ts';
+import { joinContinuationLines } from './util.ts';
 
 const REG = {
   pdf: /\.pdf$/i,
@@ -48,7 +49,7 @@ const REG = {
   txt: /\.(txt|text)$/i,
   lineSeparator: new RegExp(/\r?\0?\n/),
   leadingDot: new RegExp(/^\./),
-  BOM: new RegExp(/^\uFEFF/)
+  BOM: new RegExp(/^\uFEFF/),
 };
 
 /**
@@ -75,9 +76,8 @@ export function fsitem(...args: (FSItem | FolderPath | FilePath)[]): FSItem {
  */
 export class FSItem {
   protected _isFSItem = true;
-  // @ts-ignore
+  // @ts-ignore this does get initialized
   protected _f: FilePath | FolderPath;
-  // @ts-ignore
   protected _stats: FSStats = new FSStats();
   // Test to see if _folders and _files have been read
   protected _haveReadFolderContents: boolean = false;
@@ -85,7 +85,7 @@ export class FSItem {
   protected _folders: FSItem[] = [];
   // If this is a folder, contains a filtered list of files within this folder
   protected _files: FSItem[] = [];
-  // Stores the strings that were used to create the path. This property may be deprecated at any time.
+  // Stores the strings that were used to create the path. This property may be deprecated at unknown time.
   protected _args: (FilePath | FolderPath)[] = [];
 
   /**
@@ -118,7 +118,7 @@ export class FSItem {
           throw new Error('Invalid parameter');
         } else {
           this._f = path.resolve(arg);
-          this._args = arg;
+          this._args = arg as string[];
         }
       } else if (isString(arg)) {
         this._f = arg;
@@ -149,7 +149,7 @@ export class FSItem {
    * @param val Any object
    * @returns
    */
-  static isInstance(val: any): val is FSItem {
+  static isInstance(val: unknown): val is FSItem {
     return isDict(val) && val._isFSItem === true;
   }
 
@@ -163,7 +163,7 @@ export class FSItem {
       if (isArray(args[0])) {
         this._f = path.resolve(this._f, ...args[0]);
         args[0].forEach((arg) => {
-          this._args.push(arg);
+          this._args.push(arg as string);
         });
       } else {
         this._f = path.resolve(this._f, args[0]);
@@ -235,7 +235,7 @@ export class FSItem {
   /**
    * Returns the full filename of the file or folder, including it's extension.
    * For example, '/path/to/file.name.html' would return 'file.name.html'.
-   * @return {string} - The full file or folder name, including it's extension, if any.
+   * @return {string} - The full file or folder name, including it's extension, if unknown.
    */
   get filename(): string {
     return path.basename(this._f);
@@ -316,7 +316,7 @@ export class FSItem {
    * @param {boolean} [testContents=false] If true, tests the file contents as well (not implemented).
    * @returns {boolean} True if the extension indicates this is a PDF file.
    */
-  isPdf(testContents = false): boolean {
+  isPdf(_testContents = false): boolean {
     return REG.pdf.test(this.extname);
   }
 
@@ -356,8 +356,8 @@ export class FSItem {
  * containing the read bytes, or rejects with an error.
  */
   getBytes(length = 24): Promise<FSBytes> {
-    return this.readBytes(length).then((buffer) => {
-      return new FSBytes(buffer);
+    return this.readBytes(length).then((buffer: Buffer) => {
+      return new FSBytes(buffer as Buffer);
     });
   }
 
@@ -409,7 +409,7 @@ export class FSItem {
           this._stats = new FSStats(resp);
           return Promise.resolve(this._stats);
         })
-        .catch((err) => {
+        .catch((_err) => {
           this._stats = new FSStats();
           return Promise.resolve(this._stats);
         });
@@ -432,8 +432,8 @@ export class FSItem {
    * they haven't been previously read.
    * @returns a promise with value true if this is a folder.
    */
-  async isDirectory(): Promise<boolean> {
-    return this.getStats().then((resp) => {
+  isDirectory(): Promise<boolean> {
+    return this.getStats().then(() => {
       return this._stats.isDirectory();
     });
   }
@@ -443,7 +443,7 @@ export class FSItem {
    * @returns {Prommise<boolean>}
    * @see FSItem#isDirectory
    */
-  async isDir(): Promise<boolean> {
+  isDir(): Promise<boolean> {
     return this.isDirectory();
   }
 
@@ -452,7 +452,7 @@ export class FSItem {
    * @returns {Prommise<boolean>}
    * @see FSItem#isDirectory
    */
-  async isFolder(): Promise<boolean> {
+  isFolder(): Promise<boolean> {
     return this.isDirectory();
   }
 
@@ -461,8 +461,8 @@ export class FSItem {
    * haven't been previously read.
    * @returns a promise with value true if this is a file.
    */
-  async isFile(): Promise<boolean> {
-    return this.getStats().then((resp) => {
+  isFile(): Promise<boolean> {
+    return this.getStats().then(() => {
       return this._stats.isFile();
     });
   }
@@ -472,8 +472,8 @@ export class FSItem {
    * system entry if they haven't been previously read.
    * @returns a promise with value true if this exists.
    */
-  async exists(): Promise<boolean> {
-    return this.getStats().then((resp) => {
+  exists(): Promise<boolean> {
+    return this.getStats().then(() => {
       return this._stats.isDirectory() || this._stats.isFile();
     });
   }
@@ -484,7 +484,7 @@ export class FSItem {
    * @returns a promise with value true if this is a folder.
    * @deprecated Use isDir() method instead.
    */
-  async dirExists(): Promise<boolean> {
+  dirExists(): Promise<boolean> {
     return this.isDir();
   }
 
@@ -494,7 +494,7 @@ export class FSItem {
    * @returns a promise with value true if this is a file.
    * @deprecated Use isFile() method instead.
    */
-  async fileExists(): Promise<boolean> {
+  fileExists(): Promise<boolean> {
     return this.isFile();
   }
 
@@ -504,8 +504,8 @@ export class FSItem {
    * @returns a promise with the Date this file was created.
    * @deprecated Use isFile() method instead.
    */
-  async createdAt(): Promise<Date | undefined> {
-    return this.getStats().then((resp) => {
+  createdAt(): Promise<Date | undefined> {
+    return this.getStats().then(() => {
       return this._stats.createdAt();
     });
   }
@@ -521,11 +521,10 @@ export class FSItem {
 
   /**
    * Ensures there is a folder with this path.
-   * @param {fx.EnsureDirOptions | number} [options] Options for ensuring the directory.
-   * @returns {Promise<unknown>} A promise that resolves when the directory is ensured.
+   * @returns {Promise<void>} A promise that resolves when the directory is ensured.
    */
-  async ensureDir(options?: fx.EnsureDirOptions | number): Promise<unknown> {
-    return fx.ensureDir(this._f, options);
+  ensureDir(): Promise<void> {
+    return dfs.ensureDir(this._f);
   }
 
   /**
@@ -533,8 +532,8 @@ export class FSItem {
    * @param {fx.EnsureDirOptions | number} [options] Options for ensuring the directory.
    * @returns {this} The current FSItem instance.
    */
-  ensureDirSync(options?: fx.EnsureDirOptions | number): this {
-    fx.ensureDirSync(this._f, options);
+  ensureDirSync(): this {
+    dfs.ensureDirSync(this._f);
     return this;
   }
 
@@ -542,8 +541,14 @@ export class FSItem {
    * Removes this file or folder.
    * @returns {Promise<void>} A promise that resolves when the file or folder is removed.
    */
-  async remove(): Promise<void> {
-    return fx.remove(this._f);
+  remove(options: RemoveOpts = {}): Promise<void> {
+    return this.isDir().then((isDir) => {
+      if (isDir) {
+        return fs.promises.rmdir(this._f, options);
+      } else {
+        return fs.promises.unlink(this._f);
+      }
+    });
   }
 
   /**
@@ -552,20 +557,20 @@ export class FSItem {
    * @param options An fx.CopyOptions object
    * @returns
    */
-  async copyTo(dest: FilePath | FSItem, options?: fx.CopyOptions): Promise<void> {
+  copyTo(dest: FilePath | FSItem, options?: dfs.CopyOptions): Promise<void> {
     const p: FilePath = FSItem.isInstance(dest) ? dest.path : dest;
-    return fx.copy(this._f, p, options);
+    return dfs.copy(this._f, p, options);
   }
 
   /**
    * Syncronous version of `copyTo` method.
    * @param dest
-   * @param options An fx.CopyOptionsSync object
+   * @param options An dfs.CopyOptionsSync object
    * @returns
    */
-  copySync(dest: FilePath | FSItem, options?: fx.CopyOptionsSync): this {
+  copySync(dest: FilePath | FSItem, options?: dfs.CopyOptions): this {
     const p: FilePath = FSItem.isInstance(dest) ? dest.path : dest;
-    fx.copySync(this._f, p, options);
+    dfs.copySync(this._f, p, options);
     return this;
   }
 
@@ -575,9 +580,9 @@ export class FSItem {
    * @param {fx.MoveOptions} options - Options to `overwrite` and `dereference` symlinks.
    * @returns {Promise<void>}
    */
-  async moveTo(dest: FilePath | FSItem, options?: fx.MoveOptions): Promise<void> {
+  moveTo(dest: FilePath | FSItem, options?: dfs.MoveOptions): Promise<void> {
     const p: FilePath = FSItem.isInstance(dest) ? dest.path : dest;
-    return fx.move(this._f, p, options);
+    return dfs.move(this._f, p, options);
   }
 
   /**
@@ -587,7 +592,7 @@ export class FSItem {
    * @param regex (optional) Use to constrain results
    * @return Array of files within the folder
    */
-  async getFiles(regex?: RegExp): Promise<FSItem[]> {
+  getFiles(regex?: RegExp): Promise<FSItem[]> {
     return this.getChildren({ match: regex }).then(() => {
       return Promise.resolve(this._files);
     });
@@ -600,7 +605,7 @@ export class FSItem {
    * @param regex (optional) Use to constrain results
    * @return Array of folders with the folder
    */
-  async getFolders(regex?: RegExp): Promise<FSItem[]> {
+  getFolders(regex?: RegExp): Promise<FSItem[]> {
     return this.getChildren({ match: regex }).then(() => {
       return Promise.resolve(this._folders);
     });
@@ -618,7 +623,7 @@ export class FSItem {
       match: options.match,
       levels: isNumber(options.levels) ? options.levels - 1 : 0,
       callback: options.callback,
-      sort: isDict(options.sort) ? options.sort : {}
+      sort: isDict(options.sort) ? options.sort : {},
     };
     const all: FSItem[] = [];
     this._folders = [];
@@ -627,7 +632,7 @@ export class FSItem {
     return fs.promises
       .readdir(this._f)
       .then((entries) => {
-        const jobs: Promise<any>[] = [];
+        const jobs: Promise<unknown>[] = [];
         for (const entry of entries) {
           const fs = fsitem(this._f, entry);
           let bMatch = false;
@@ -662,7 +667,7 @@ export class FSItem {
         }
         return Promise.all(jobs);
       })
-      .then((resp) => {
+      .then(() => {
         this._haveReadFolderContents = true;
         if (isDict(opts.sort)) {
           this.sortChildren(opts.sort);
@@ -695,7 +700,7 @@ export class FSItem {
    */
   public sortFolders(): this {
     this.folders.sort((a, b) => {
-      return compareDictValue(a, b, 'filename');
+      return compareDictValue(a as unknown as Dict, b as unknown as Dict, 'filename');
     });
     return this;
   }
@@ -706,7 +711,7 @@ export class FSItem {
    */
   public sortFiles(): this {
     this.files.sort((a, b) => {
-      return compareDictValue(a, b, 'filename');
+      return compareDictValue(a as unknown as Dict, b as unknown as Dict, 'filename');
     });
     return this;
   }
@@ -717,7 +722,7 @@ export class FSItem {
    */
   public sortFilesBySize(): this {
     this.files.sort((a, b) => {
-      return compareDictValue(a, b, 'size');
+      return compareDictValue(a as unknown as Dict, b as unknown as Dict, 'size');
     });
     return this;
   }
@@ -726,9 +731,9 @@ export class FSItem {
    * For files, calculate the checksum of this file
    * @returns {Promise<string>} A promise that resolves with the checksum of the file.
    */
-  async checksum() {
+  checksum() {
     return new Promise((resolve, reject) => {
-      // @ts-ignore
+      // @ts-ignore too picky
       checksum.file(this._f, (err, sum) => {
         if (err) {
           reject(this.newError(err));
@@ -744,22 +749,24 @@ export class FSItem {
    * metadata.
    * @returns {Promise<Date | undefined>} A promise that resolves with the creation date of the PDF file, or undefined if not found.
    */
-  async getPdfDate(): Promise<Date | undefined> {
+  getPdfDate(): Promise<Date | undefined> {
     return new Promise((resolve, reject) => {
-      const pdfParser = new Pdfparser();
-      pdfParser.on('readable', (resp: any) => {
-        if (resp && resp.Meta && resp.Meta.CreationDate) {
-          // const d = new Date(p[1], p[2], p[3], p[4], p[5], p[6]);
-          // d.tim;
-          const d = DateUtil.fromPdfDate(resp.Meta.CreationDate);
-          resolve(d ? d.date : undefined);
-        }
-        resolve(new Date(0));
+      import('pdf2json').then(({ PDFParser }) => {
+        const pdfParser = new PDFParser();
+        pdfParser.on('readable', (resp: unknown) => {
+          if (isDict(resp) && isDict(resp.Meta) && isString(resp.Meta.CreationDate)) {
+            // const d = new Date(p[1], p[2], p[3], p[4], p[5], p[6]);
+            // d.tim;
+            const d = DateUtil.fromPdfDate(resp.Meta.CreationDate);
+            resolve(d ? d.date : undefined);
+          }
+          resolve(new Date(0));
+        });
+        pdfParser.on('pdfParser_dataError', (errObj: Record<'parserError', Error>) => {
+          reject(this.newError(errObj.parserError));
+        });
+        pdfParser.loadPDF(this._f);
       });
-      pdfParser.on('pdfParser_dataError', (errObj: Record<'parserError', Error>) => {
-        reject(this.newError(errObj.parserError));
-      });
-      pdfParser.loadPDF(this._f);
     });
   }
 
@@ -768,7 +775,7 @@ export class FSItem {
    * @param path2
    * @returns {Promise<boolean>} A promise that resolves with true if the files are equal, false otherwise.
    */
-  async filesEqual(path2: FilePath): Promise<boolean> {
+  filesEqual(path2: FilePath): Promise<boolean> {
     return new Promise((resolve, reject) => {
       const job1 = this.isFile();
       const job2 = fsitem(path2).isFile();
@@ -798,16 +805,16 @@ export class FSItem {
    * @param {number} [offset=0] The offset within the buffer where to start storing the read bytes. Defaults to 0.
    * @param {number} [position=0] The offset within the file from where to start reading (optional). Defaults to 0.
    * @returns {Promise<Buffer>} A promise that resolves with the buffer containing the read bytes, or rejects with an error.
-   * @throws {Error} Rejects the promise with any error encountered during the file opening, reading, or closing operations.
+   * @throws {Error} Rejects the promise with unknown error encountered during the file opening, reading, or closing operations.
    */
-  async readBytes(length: Integer, buffer?: Buffer, offset: Integer = 0, position: Integer = 0): Promise<any> {
+  readBytes(length: Integer, buffer?: Buffer, offset: Integer = 0, position: Integer = 0): Promise<Buffer> {
     return new Promise((resolve, reject) => {
       fs.open(this.path, 'r', (err, fd) => {
         if (err) {
           reject(err);
         } else {
           const buf = buffer ? buffer : Buffer.alloc(length);
-          fs.read(fd, buf, offset, length, position, (err2, bytesRead: Integer, resultBuffer) => {
+          fs.read(fd, buf, offset, length, position, (err2, _bytesRead: Integer, resultBuffer) => {
             close(fd, (err3) => {
               if (err2) {
                 reject(err2);
@@ -827,7 +834,7 @@ export class FSItem {
    * Reads the entire file as a buffer.
    * @returns {Promise<Buffer>} A promise that resolves with the file contents as a buffer.
    */
-  async readAsBuffer(): Promise<Buffer> {
+  readAsBuffer(): Promise<Buffer> {
     return readFile(this._f).catch((err) => {
       throw this.newError(err);
     });
@@ -837,7 +844,7 @@ export class FSItem {
    * Reads the entire file as a string.
    * @returns {Promise<string>} A promise that resolves with the file contents as a string.
    */
-  async readAsString(): Promise<any> {
+  readAsString(): Promise<string> {
     return new Promise((resolve, reject) => {
       fs.readFile(this._f, 'utf8', (err, data) => {
         if (err) {
@@ -854,8 +861,8 @@ export class FSItem {
    * Reads the file as a string and splits it into lines.
    * @returns {Promise<string[]>} A promise that resolves with an array of lines.
    */
-  async readAsLines(continuation?: string): Promise<string[]> {
-    return this.readAsString().then((data) => {
+  readAsLines(continuation?: string): Promise<string[]> {
+    return this.readAsString().then((data: string) => {
       const lines = data.split(REG.lineSeparator).map((line) => {
         // RSC output files are encoded oddly and this seems to clean them up
         return line.replace(/\r/, '').replace(/\0/g, '');
@@ -871,9 +878,9 @@ export class FSItem {
 
   /**
    * Reads the file as JSON and parses it.
-   * @returns {Promise<any>} A promise that resolves with the parsed JSON content.
+   * @returns {Promise<unknown>} A promise that resolves with the parsed JSON content.
    */
-  async readJson(): Promise<any> {
+  readJson(): Promise<unknown> {
     return new Promise((resolve, reject) => {
       fs.readFile(this._f, 'utf8', (err, data) => {
         if (err) {
@@ -893,9 +900,9 @@ export class FSItem {
   /**
    * Reads the file as JSON, parses it, and performs a deep copy with optional transformations.
    * @param {FsDeepCopyOpts} [opts={}] - Options for the deep copy operation.
-   * @returns {Promise<any>} A promise that resolves with the deeply copied and transformed JSON content.
+   * @returns {Promise<unknown>} A promise that resolves with the deeply copied and transformed JSON content.
    */
-  async deepReadJson(opts: FsDeepCopyOpts = {}): Promise<any> {
+  deepReadJson(opts: FsDeepCopyOpts = {}): Promise<unknown> {
     return this.readJson().then((resp) => {
       return this.deepCopy(resp, opts);
     });
@@ -903,12 +910,12 @@ export class FSItem {
 
   /**
    * Performs a deep copy of the given data with optional transformations.
-   * @param {any} a - The data to deep copy.
+   * @param {unknown} a - The data to deep copy.
    * @param {FsDeepCopyOpts} [options] - Options for the deep copy operation.
-   * @returns {Promise<any>} A promise that resolves with the deeply copied and transformed data.
+   * @returns {Promise<unknown>} A promise that resolves with the deeply copied and transformed data.
    */
-  private async deepCopy(a: any, options?: FsDeepCopyOpts): Promise<any> {
-    let opts: FsDeepCopyOpts = deepCopySetDefaultOpts(options);
+  private deepCopy(a: unknown, options?: FsDeepCopyOpts): Promise<unknown> {
+    const opts: FsDeepCopyOpts = deepCopySetDefaultOpts(options);
     const urlTest = new RegExp(`^${opts.pre}(file|http|https):\/\/(.+)${opts.post}$`, 'i');
     if (opts.includeUrl && isNonEmptyString(a) && urlTest.test(a)) {
       const p = a.match(urlTest);
@@ -921,20 +928,21 @@ export class FSItem {
         return Promise.resolve(a);
       }
     } else if (isObject(a)) {
-      // @ts-ignore
+      // @ts-ignore xxx
       const re: RegExp = opts && opts.detectRegExp ? asRegExp(a) : undefined;
-      if (re) {
+      if (re && isDict(a)) {
         return Promise.resolve(re);
       } else {
-        const jobs: any[] = [];
+        const jobs: unknown[] = [];
         const result2: Dict = {};
         Object.keys(a).forEach((key) => {
-          let job = this.deepCopy(a[key], opts).then((resp) => {
+          // @ts-ignore fight the type system latter
+          const job = this.deepCopy(a[key], opts).then((resp) => {
             result2[key] = resp;
           });
           jobs.push(job);
         });
-        return Promise.all(jobs).then((resp) => {
+        return Promise.all(jobs).then((_resp) => {
           return Promise.resolve(result2);
         });
       }
@@ -945,12 +953,12 @@ export class FSItem {
 
   /**
    * Writes JSON data to the file.
-   * @param {any} data - The data to write as JSON.
+   * @param {unknown} data - The data to write as JSON.
    * @returns {Promise<void>} A promise that resolves when the write operation is complete.
    */
-  async writeJson(data: any): Promise<void> {
+  async writeJson(data: unknown): Promise<void> {
     const buf = Buffer.from(JSON.stringify(data, null, 2), 'utf8');
-    return fs.promises.writeFile(this._f, buf);
+    await fs.promises.writeFile(this._f, buf);
   }
 
   /**
@@ -958,7 +966,7 @@ export class FSItem {
    * @param {string} data - The base64-encoded data to write.
    * @returns {Promise<void>} A promise that resolves when the write operation is complete.
    */
-  async writeBase64(data: string): Promise<void> {
+  writeBase64(data: string): Promise<void> {
     return this.write(data, 'base64');
   }
 
@@ -968,7 +976,7 @@ export class FSItem {
    * @param {BufferEncoding} [type='utf8'] - The encoding to use.
    * @returns {Promise<void>} A promise that resolves when the write operation is complete.
    */
-  async write(data: string | string[], type: BufferEncoding = 'utf8'): Promise<void> {
+  write(data: string | string[], type = 'utf8'): Promise<void> {
     if (isArray(data)) {
       data = data.join('\n');
     }
@@ -1010,10 +1018,10 @@ export class FSItem {
 
       if (newPath) {
         return this.moveTo(newPath, { overwrite: true })
-          .then((resp) => {
+          .then(() => {
             return Promise.resolve(newPath as FilePath);
           })
-          .catch((err) => {
+          .catch(() => {
             throw this.newError('ENOENT', 'File could not be renamed');
           });
       }
@@ -1033,7 +1041,7 @@ export class FSItem {
    * @param {string} [sep='-'] - The separator to use between the filename and the index.
    * @returns {Promise<FilePath | undefined>} A promise that resolves with an available file path, or undefined if not found.
    */
-  async findAvailableIndexFilename(limit: Integer = 32, sep: string = '-'): Promise<FilePath | undefined> {
+  async findAvailableIndexFilename(_limit: Integer = 32, sep: string = '-'): Promise<FilePath | undefined> {
     let newFsDest: FSItem | undefined;
     let count = 0;
     let looking = true;
@@ -1073,12 +1081,12 @@ export class FSItem {
         }
 
         if (opts.move) {
-          return this.moveTo(fsDest.path, { overwrite: true }).then((resp) => {
+          return this.moveTo(fsDest.path, { overwrite: true }).then((_resp) => {
             // console.log(`  Moved ${srcFile} to ${destPath}`);
             return Promise.resolve(true);
           });
         } else {
-          return this.copyTo(fsDest.path, { overwrite: true }).then((resp) => {
+          return this.copyTo(fsDest.path, { overwrite: true }).then((_resp) => {
             // console.log(`  Copied ${srcFile} to ${destPath}`);
             return Promise.resolve(true);
           });
@@ -1091,23 +1099,21 @@ export class FSItem {
       // calling this method.
       throw this.newError('ENOENT', 'File does not exist');
     }
-
-    return Promise.resolve(false);
   }
 
   /**
    * Creates a new Error with the specified code and message, including the file path.
-   * @param {any} code - The error code or Error object.
+   * @param {unknown} code - The error code or Error object.
    * @param {string} [message] - The error message.
    * @returns {Error} A new Error object.
    */
-  newError(code: any, message?: string): Error {
+  newError(code: unknown, message?: string): Error {
     if (isError(code)) {
       code.message = `${code.message}: ${this._f}`;
       return code;
     }
-    let err: Error = new Error(`${message}: ${this._f}`);
-    // @ts-ignore
+    const err: Error = new Error(`${message}: ${this._f}`);
+    // @ts-ignore xxx
     err.code = code;
     return err;
   }

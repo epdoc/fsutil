@@ -4,7 +4,9 @@ Async File System utilities for Node.js
 
 ## Description
 
-@epdoc/fsutil is a powerful and flexible Node.js package that provides asynchronous file system utilities. It offers an intuitive API for working with files and directories, including operations like reading, writing, copying, and moving files, as well as directory management and file type detection.
+@epdoc/fsutil is a powerful and flexible Node.js package that provides asynchronous file system utilities. It offers an
+intuitive API for working with files and directories, including operations like reading, writing, copying, and moving
+files, as well as directory management and file type detection.
 
 ## Key Features
 
@@ -43,7 +45,6 @@ await fsitem('output.txt').write('Hello, World!');
 await fsitem('source.txt').safeCopy('destination.txt');
 ```
 
-
 ## API Overview
 
 ### Main Classes
@@ -75,7 +76,8 @@ await fsitem('source.txt').safeCopy('destination.txt');
 - `SafeCopyOpts`: Interface for safe copy options
 - `FileConflictStrategy`: Type for handling file conflicts
 
-For detailed API documentation and usage examples, please refer to the JSDoc comments in the source code of each class and function.
+For detailed API documentation and usage examples, please refer to the JSDoc comments in the source code of each class
+and function.
 
 ## Development
 
@@ -107,11 +109,9 @@ To check for the latest version of dependencies, use `npm-check -u` (must be ins
 
 ## Contributing
 
-Contributions are not whole heartedly welcome yet, as I am still developing this
-mostly for personal use! Please feel free to submit a Pull Request.
+Contributions are not whole heartedly welcome yet, as I am still developing this mostly for personal use! Please feel
+free to submit a Pull Request.
 
 ## Support
 
 If you encounter any problems or have any questions, please open an issue on the GitHub repository.
-
-
