@@ -14,7 +14,6 @@ import {
   isError,
   isNonEmptyArray,
   isNonEmptyString,
-  isNumber,
   isObject,
   isRegExp,
   isString,
@@ -26,7 +25,25 @@ import fs from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
+<<<<<<< Updated upstream:src/index.ts
 import Pdfparser from 'pdf2json';
+=======
+import { FSBytes } from './fsbytes.ts';
+import { FSStats } from './fsstats.ts';
+import {
+  type FileConflictStrategy,
+  fileConflictStrategyType,
+  type FileName,
+  type FilePath,
+  type FolderName,
+  type FolderPath,
+  type FsDeepCopyOpts,
+  type FSSortOpts,
+  isFilePath,
+  type SafeCopyOpts,
+} from './types.ts';
+import { joinContinuationLines } from './util.ts';
+>>>>>>> Stashed changes:src/fsitem.ts
 
 const REG = {
   pdf: /\.pdf$/i,
@@ -179,7 +196,13 @@ export class FSItem {
   protected _isFSItem = true;
   // @ts-ignore
   protected _f: FilePath | FolderPath;
+<<<<<<< Updated upstream:src/index.ts
   // @ts-ignore
+=======
+  protected _isFile: boolean = false;
+  protected _isDirectory: boolean = false;
+  protected _isSymlink: boolean = false;
+>>>>>>> Stashed changes:src/fsitem.ts
   protected _stats: FSStats = new FSStats();
   // Test to see if _folders and _files have been read
   protected _haveReadFolderContents: boolean = false;
@@ -187,7 +210,12 @@ export class FSItem {
   protected _folders: FSItem[] = [];
   // If this is a folder, contains a filtered list of files within this folder
   protected _files: FSItem[] = [];
+<<<<<<< Updated upstream:src/index.ts
   // Stores the strings that were used to create the path. This property may be deprecated at any time.
+=======
+  protected _symlinks: FSItem[] = [];
+  // Stores the strings that were used to create the path. This property may be deprecated at unknown time.
+>>>>>>> Stashed changes:src/fsitem.ts
   protected _args: (FilePath | FolderPath)[] = [];
 
   /**
@@ -203,7 +231,7 @@ export class FSItem {
         this._args = arg._args.map((item) => {
           return item;
         });
-        this._stats = arg._stats.copy();
+        this._stats = arg._stats;
         this._haveReadFolderContents = arg._haveReadFolderContents;
         this._folders = arg._folders.map((item) => {
           return item.copy();
@@ -236,6 +264,22 @@ export class FSItem {
       });
       this._f = path.resolve(...(args as string[]));
     }
+  }
+
+  fromDirEntry(entry: Deno.DirEntry): FSItem {
+    const result = new FSItem(this._f, entry.name);
+    result._isFile = entry.isFile;
+    result._isDirectory = entry.isDirectory;
+    result._isSymlink = entry.isSymlink;
+    return result;
+  }
+
+  static fromWalkEntry(entry: dfs.WalkEntry): FSItem {
+    const result = new FSItem(entry.path);
+    result._isFile = entry.isFile;
+    result._isDirectory = entry.isDirectory;
+    result._isSymlink = entry.isSymlink;
+    return result;
   }
 
   /**
@@ -444,7 +488,7 @@ export class FSItem {
     }
     if (ext !== this.extname) {
       this._f = path.format({ ...path.parse(this._f), base: '', ext: ext });
-      this._stats.clear();
+      this._stats = new FSStats();
     }
     return this;
   }
@@ -457,7 +501,7 @@ export class FSItem {
   setBasename(val: string): this {
     if (val !== this.basename) {
       this._f = path.format({ dir: this.dirname, name: val, ext: this.extname });
-      this._stats.clear();
+      this._stats = new FSStats();
     }
     return this;
   }
@@ -471,10 +515,9 @@ export class FSItem {
    * @returns A promise with an FSStats object
    */
   public getStats(force = false): Promise<FSStats> {
-    if (force || !this._stats.isInitialized()) {
-      return fs.promises
-        .stat(this._f)
-        .then((resp: fs.Stats) => {
+    if (force || !this._stats) {
+      return Deno.lstat(this._f)
+        .then((resp: Deno.FileInfo) => {
           this._stats = new FSStats(resp);
           return Promise.resolve(this._stats);
         })
@@ -590,12 +633,35 @@ export class FSItem {
     return this;
   }
 
+<<<<<<< Updated upstream:src/index.ts
   /**
    * Removes this file or folder.
    * @returns
    */
   async remove(): Promise<void> {
     return fx.remove(this._f);
+=======
+  // /**
+  //  * Removes this file or folder.
+  //  * @returns {Promise<void>} A promise that resolves when the file or folder is removed.
+  //  */
+  // removeOld(options: RemoveOpts = {}): Promise<void> {
+  //   return this.getStats().then(() => {
+  //     if (this._stats.isDirectory()) {
+  //       return fs.promises.rmdir(this._f, options);
+  //     } else {
+  //       return fs.promises.unlink(this._f);
+  //     }
+  //   });
+  // }
+
+  remove(opts: Deno.RemoveOptions = {}): Promise<void> {
+    return this.exists().then((exists) => {
+      if (exists) {
+        return Deno.remove(this._f, opts);
+      }
+    });
+>>>>>>> Stashed changes:src/fsitem.ts
   }
 
   /**
@@ -632,27 +698,55 @@ export class FSItem {
     return fx.move(this._f, p, options);
   }
 
+  async readDir(): Promise<FSItem[]> {
+    const results: FSItem[] = [];
+    if (this._isDirectory) {
+      for await (const entry of Deno.readDir(this._f)) {
+        const fs: FSItem = this.fromDirEntry(entry);
+        results.push(fs);
+      }
+    }
+    return results;
+  }
+
   /**
    * If this is a folder, retrieves the list of matching files in this folder.
-   * Repopulates this._files and this._folders in the process. Returns just the
-   * filenames, not the full path.
    * @param regex (optional) Use to constrain results
    * @return Array of files within the folder
    */
   async getFiles(regex?: RegExp): Promise<FSItem[]> {
+<<<<<<< Updated upstream:src/index.ts
     return this.getChildren({ match: regex }).then(() => {
       return Promise.resolve(this._files);
     });
+=======
+    const results: FSItem[] = [];
+    if (this._isDirectory) {
+      for await (const entry of Deno.readDir(this._f)) {
+        if (entry.isFile) {
+          if (regex) {
+            if (regex.test(entry.name)) {
+              const fs: FSItem = this.fromDirEntry(entry);
+              results.push(fs);
+            }
+          } else {
+            const fs: FSItem = this.fromDirEntry(entry);
+            results.push(fs);
+          }
+        }
+      }
+    }
+    return results;
+>>>>>>> Stashed changes:src/fsitem.ts
   }
 
   /**
    * If this is a folder, retrieves the list of matching folders in this folder.
-   * Repopulates this._files and this._folders in the process. Returns just the
-   * folder names, not the full path.
    * @param regex (optional) Use to constrain results
-   * @return Array of folders with the folder
+   * @return Array of folders within the folder
    */
   async getFolders(regex?: RegExp): Promise<FSItem[]> {
+<<<<<<< Updated upstream:src/index.ts
     return this.getChildren({ match: regex }).then(() => {
       return Promise.resolve(this._folders);
     });
@@ -672,9 +766,38 @@ export class FSItem {
       callback: options.callback
     };
     const all: FSItem[] = [];
+=======
+    const results: FSItem[] = [];
+    if (this._isDirectory) {
+      for await (const entry of Deno.readDir(this._f)) {
+        if (entry.isDirectory) {
+          if (regex) {
+            if (regex.test(entry.name)) {
+              const fs: FSItem = this.fromDirEntry(entry);
+              results.push(fs);
+            }
+          } else {
+            const fs: FSItem = this.fromDirEntry(entry);
+            results.push(fs);
+          }
+        }
+      }
+    }
+    return results;
+  }
+
+  /**
+   *
+   * @param options
+   * @returns
+   */
+  async walk(options: dfs.WalkOptions = { maxDepth: 1 }): Promise<FSItem[]> {
+>>>>>>> Stashed changes:src/fsitem.ts
     this._folders = [];
     this._files = [];
+    this._symlinks = [];
     this._haveReadFolderContents = false;
+<<<<<<< Updated upstream:src/index.ts
     return fs.promises
       .readdir(this._f)
       .then((entries) => {
@@ -717,6 +840,28 @@ export class FSItem {
         this._haveReadFolderContents = true;
         return Promise.resolve(all);
       });
+=======
+
+    const entries: dfs.WalkEntry[] = await Array.fromAsync(dfs.walk(this._f, options));
+
+    const result: FSItem[] = [];
+    entries.forEach((walkEntry: dfs.WalkEntry) => {
+      if (walkEntry.name !== '.') {
+        const fs = FSItem.fromWalkEntry(walkEntry);
+        result.push(fs);
+        if (this.path === fs.dirname) {
+          if (walkEntry.isDirectory) {
+            this._folders.push(fs);
+          } else if (walkEntry.isFile) {
+            this._files.push(fs);
+          } else if (walkEntry.isSymlink) {
+            this._symlinks.push(fs);
+          }
+        }
+      }
+    });
+    return result;
+>>>>>>> Stashed changes:src/fsitem.ts
   }
 
   public sortFolders(): this {
@@ -904,7 +1049,13 @@ export class FSItem {
    * @param opts
    * @returns Path to file if file was backed up, or true if the file didn't exist
    */
+<<<<<<< Updated upstream:src/index.ts
   async backup(opts: SafeCopyOpts = {}): Promise<FilePath | boolean> {
+=======
+  async backup(
+    opts: FileConflictStrategy = { type: 'renameWithTilde', errorIfExists: false }
+  ): Promise<FilePath | boolean> {
+>>>>>>> Stashed changes:src/fsitem.ts
     await this.getStats();
 
     if (this._stats && this._stats.exists()) {

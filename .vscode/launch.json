@@ -1,16 +1,77 @@
 {
-  // Use IntelliSense to learn about possible attributes.
-  // Hover to view descriptions of existing attributes.
-  // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "Debug Jest Tests",
-      "type": "node",
       "request": "launch",
-      "runtimeArgs": ["--inspect-brk", "${workspaceRoot}/node_modules/.bin/jest", "--runInBand"],
-      "console": "integratedTerminal",
-      "internalConsoleOptions": "neverOpen"
+      "name": "Debug fs.test.ts",
+      "type": "node",
+      "cwd": "${workspaceFolder}",
+      "env": {},
+      "runtimeExecutable": "/Users/jpravetz/.deno/bin/deno",
+      "runtimeArgs": [
+        "test",
+        "--inspect-brk",
+        "--allow-env",
+        "--allow-sys",
+        "--allow-read",
+        "--allow-write",
+        "./test/fs.test.ts"
+      ],
+      "attachSimplePort": 9229
+    },
+    {
+      "request": "launch",
+      "name": "Debug fsbytes.test.ts",
+      "type": "node",
+      "cwd": "${workspaceFolder}",
+      "env": {},
+      "runtimeExecutable": "/Users/jpravetz/.deno/bin/deno",
+      "runtimeArgs": [
+        "test",
+        "--inspect-brk",
+        "--allow-env",
+        "--allow-sys",
+        "--allow-read",
+        "--allow-write",
+        "./test/fsbytes.test.ts"
+      ],
+      "attachSimplePort": 9229
+    },
+    {
+      "request": "launch",
+      "name": "Debug fs2.test.ts",
+      "type": "node",
+      "cwd": "${workspaceFolder}",
+      "env": {},
+      "runtimeExecutable": "/Users/jpravetz/.deno/bin/deno",
+      "runtimeArgs": [
+        "test",
+        "--inspect-brk",
+        "--allow-env",
+        "--allow-sys",
+        "--allow-read",
+        "--allow-write",
+        "./test/fs2.test.ts"
+      ],
+      "attachSimplePort": 9229
+    },
+    {
+      "request": "launch",
+      "name": "Debug fs3.test.ts",
+      "type": "node",
+      "cwd": "${workspaceFolder}",
+      "env": {},
+      "runtimeExecutable": "/Users/jpravetz/.deno/bin/deno",
+      "runtimeArgs": [
+        "test",
+        "--inspect-brk",
+        "--allow-env",
+        "--allow-sys",
+        "--allow-read",
+        "--allow-write",
+        "./test/fs3.test.ts"
+      ],
+      "attachSimplePort": 9229
     }
   ]
 }

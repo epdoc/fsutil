@@ -61,4 +61,5 @@ node_modules/
 
 # Finder (MacOS) folder config
 .DS_Store
+tests/data1
 

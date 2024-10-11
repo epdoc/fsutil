@@ -3,15 +3,21 @@ import { isDate, isValidDate } from '@epdoc/typeutil';
 import { isArray } from 'epdoc-util';
 import os from 'node:os';
 import path from 'node:path';
+<<<<<<< Updated upstream
 import { FSItem, FSStats, SafeCopyOpts, fsitem, isFilePath, isFilename, isFolderPath } from './../src/index';
+=======
+import process from 'node:process';
+import { FSItem, fsitem, FSStats, isFilename, isFilePath, isFolderPath, type SafeCopyOpts } from '../mod.ts';
+import { fileConflictStrategyType } from '../src/types.ts';
+>>>>>>> Stashed changes
 
 const HOME = os.userInfo().homedir;
 
 describe('fsitem', () => {
   beforeEach(async () => {
     const fs = fsitem('./tests/data');
-    await fs.copyTo('./tests/data1');
-    await fsitem('./tests/data2').remove();
+    await fs.copyTo('./tests/data1', { overwrite: true });
+    await fsitem('./tests/data2').remove({ recursive: true });
     await fsitem('./tests/data2-01').remove();
     await fsitem('./tests/data2-02').remove();
     await fsitem('./tests/data2-03').remove();
@@ -55,8 +61,16 @@ describe('fsitem', () => {
         expect(isArray(resp)).toBe(true);
         expect(resp.length).toBe(1);
         fs1.sortFiles();
+<<<<<<< Updated upstream
         expect(fs1.files[0].filename).toMatch(/fs\.test\.ts$/);
         return fs1.getChildren();
+=======
+        expect(fs1.files[0].filename).toBe(TEST_FILES[0]);
+        expect(fs1.files[1].filename).toBe(TEST_FILES[1]);
+        expect(fs1.files[2].filename).toBe(TEST_FILES[2]);
+        expect(fs1.files[3].filename).toBe(TEST_FILES[3]);
+        return fs1.walk();
+>>>>>>> Stashed changes
       })
       .then((resp) => {
         expect(isArray(resp)).toBe(true);
@@ -69,12 +83,12 @@ describe('fsitem', () => {
     let fs0: FSItem = fsitem('.');
     let fs1 = fsitem('./tests');
     return fs0
-      .getChildren()
+      .walk()
       .then((resp) => {
         expect(isArray(resp)).toBe(true);
         expect(isArray(fs0.files)).toBe(true);
         expect(isArray(fs0.folders)).toBe(true);
-        return fs1.getChildren();
+        return fs1.walk();
       })
       .then((resp) => {
         expect(isArray(resp)).toBe(true);
