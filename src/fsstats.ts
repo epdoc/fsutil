@@ -74,11 +74,19 @@ export class FSStats {
     return false;
   }
 
+  isSymlink(): boolean {
+    if (this._stats) {
+      return this._stats.isSymlink === true;
+    }
+    return false;
+  }
+
   createdAt(): Date | undefined {
     if (this._stats) {
       if (this._stats.birthtime) {
         return new Date(this._stats.birthtime);
-      } else if (this._stats.mtime) {
+      }
+      if (this._stats.mtime) {
         return new Date(this._stats.mtime);
       }
     }

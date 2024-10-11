@@ -1,5 +1,4 @@
 import { type DeepCopyOpts, type Integer, isNonEmptyString } from '@epdoc/typeutil';
-import * as dfs from '@std/fs';
 import type { FSItem } from './fsitem.ts';
 
 /**
@@ -84,8 +83,7 @@ export const fileConflictStrategyType = {
  * Type representing the possible conflict strategy types.
  * This type is derived from the keys of the `fileConflictStrategyType` object.
  */
-export type FileConflictStrategyType =
-  (typeof fileConflictStrategyType)[keyof typeof fileConflictStrategyType];
+export type FileConflictStrategyType = (typeof fileConflictStrategyType)[keyof typeof fileConflictStrategyType];
 
 /**
  * Checks if a given value is a valid FileConflictStrategyType.
@@ -150,14 +148,15 @@ export type FSSortOpts = {
 };
 
 export type FSItemCallback = (fs: FSItem) => Promise<unknown>;
-export type WalkOptions = dfs.WalkOptions &
-  Partial<{
-    sort?: FSSortOpts;
-    callback?: FSItemCallback;
-  }>;
+export type GetChildrenOpts = FSSortOpts & {
+  match: RegExp | string | undefined;
+  levels: Integer;
+  sort?: FSSortOpts;
+  callback?: FSItemCallback;
+};
 
-// export type RemoveOpts = Partial<{
-//   maxRetries: Integer;
-//   recursive: boolean;
-//   retryDelay: Integer;
-// }>;
+export type RemoveOpts = Partial<{
+  maxRetries: Integer;
+  recursive: boolean;
+  retryDelay: Integer;
+}>;

@@ -29,13 +29,13 @@ describe('FSItem Additional Tests', () => {
   test('haveReadFolderContents returns correct value', async () => {
     const item = fsitem(testDir);
     expect(item.haveReadFolderContents()).toBe(false);
-    await item.walk();
+    await item.getChildren();
     expect(item.haveReadFolderContents()).toBe(true);
   });
 
   test('getChildren returns correct children', async () => {
     const item = fsitem(testDir);
-    await item.walk();
+    await item.getChildren();
     expect(item.files.length).toBe(2);
     expect(item.folders.length).toBe(1);
   });
@@ -57,7 +57,7 @@ describe('FSItem Additional Tests', () => {
 
   test('sortChildren sorts children correctly', async () => {
     const item = fsitem(testDir);
-    await item.walk();
+    await item.getChildren();
     const opts: FSSortOpts = { type: 'alphabetical' };
     item.sortChildren(opts);
     expect(item.files[0].filename).toBe('test.json');

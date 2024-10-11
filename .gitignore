@@ -63,3 +63,7 @@ node_modules/
 .DS_Store
 tests/data1
 
+npm/
+tests/data1
+
+
