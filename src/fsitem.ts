@@ -645,6 +645,11 @@ export class FSItem {
     return results;
   }
 
+  async walk(opts: dfs.WalkOptions): Promise<FSItem[]> {
+    const entries = await Array.fromAsync(dfs.walk(this._f, opts));
+    return entries.map((entry) => FSItem.fromWalkEntry(entry));
+  }
+
   /**
    * If this is a folder, retrieves the list of matching files and folders in
    * this folder and stores the lists as this._files and this._folders.
