@@ -5,8 +5,10 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { type FileCategory, type FileType, FSBytes } from '../mod.ts';
 
+const pwd: string = import.meta.dirname as string;
+
 describe('FSBytes', () => {
-  const testFilesDir = path.join(__dirname, 'data', 'test-files');
+  const testFilesDir = path.join(pwd, 'data', 'test-files');
 
   const testFile = (filename: string, expectedType: FileType, expectedCategory: FileCategory) => {
     test(`detects ${filename} correctly`, () => {

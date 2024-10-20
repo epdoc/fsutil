@@ -4,8 +4,10 @@ import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import { FSItem, fsitem } from '../mod.ts';
 
+const pwd: string = import.meta.dirname as string;
+
 describe('FSItem Additional Tests', () => {
-  const testDir = path.join(__dirname, 'test-fsitem');
+  const testDir = path.join(pwd, 'test-fsitem');
   const testFile = path.join(testDir, 'test.txt');
   const testJson = path.join(testDir, 'test.json');
 

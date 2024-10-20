@@ -12,6 +12,7 @@
     "jsr:@std/testing@*": "1.0.3",
     "npm:@types/node@*": "22.5.4",
     "npm:checksum@1": "1.0.0",
+    "npm:pdf-parser@^1.0.5": "1.0.5",
     "npm:pdf2json@^3.1.4": "3.1.4"
   },
   "jsr": {
@@ -73,10 +74,19 @@
         "optimist"
       ]
     },
+    "node-ensure@0.0.0": {
+      "integrity": "sha512-DRI60hzo2oKN1ma0ckc6nQWlHU69RH6xN0sjQTjMpChPfTYvKZdcQFfdYK2RWbJcKyUizSIy/l8OTGxMAM1QDw=="
+    },
     "optimist@0.3.7": {
       "integrity": "sha512-TCx0dXQzVtSCg2OgY/bO9hjM9cV4XYx09TVK+s3+FhkjT6LovsLe+pPMzpWf+6yXK/hUizs2gUoTw3jHM0VaTQ==",
       "dependencies": [
         "wordwrap"
+      ]
+    },
+    "pdf-parser@1.0.5": {
+      "integrity": "sha512-57abulap1s4GYqaDVZdbXxA7h4GOGnmYvU8fJlI03VbuQCQnj6nZmMB0Ed1qsRehNPtQiqAjPnJFIWdR5BB9qQ==",
+      "dependencies": [
+        "node-ensure"
       ]
     },
     "pdf2json@3.1.4": {
@@ -98,6 +108,7 @@
       "jsr:@std/fs@^1.0.4",
       "jsr:@std/io@0.225",
       "npm:checksum@1",
+      "npm:pdf-parser@^1.0.5",
       "npm:pdf2json@^3.1.4"
     ]
   }

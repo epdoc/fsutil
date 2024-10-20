@@ -29,6 +29,7 @@
     "@std/fs": "jsr:@std/fs@^1.0.4",
     "@std/io": "jsr:@std/io@^0.225.0",
     "checksum": "npm:checksum@^1.0.0",
+    "pdf-parser": "npm:pdf-parser@^1.0.5",
     "pdf2json": "npm:pdf2json@^3.1.4"
   },
   "fmt": {

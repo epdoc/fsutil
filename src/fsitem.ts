@@ -26,6 +26,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { FSBytes } from './fsbytes.ts';
 import { FSStats } from './fsstats.ts';
+import type { GetChildrenOpts } from './types.ts';
 import {
   type FileConflictStrategy,
   fileConflictStrategyType,
@@ -35,7 +36,6 @@ import {
   type FolderPath,
   type FsDeepCopyOpts,
   type FSSortOpts,
-  type GetChildrenOpts,
   isFilePath,
   type SafeCopyOpts,
 } from './types.ts';
@@ -647,6 +647,7 @@ export class FSItem {
 
   async walk(opts: dfs.WalkOptions): Promise<FSItem[]> {
     const entries = await Array.fromAsync(dfs.walk(this._f, opts));
+
     return entries.map((entry) => FSItem.fromWalkEntry(entry));
   }
 
@@ -721,63 +722,53 @@ export class FSItem {
    * @returns {void}
    */
   public sortChildren(opts: FSSortOpts = {}) {
-    this.sortFolders();
+    this._folders = FSItem.sortByFilename(this._folders);
     if (opts.type === 'size') {
-      this.sortFilesBySize();
+      this._files = FSItem.sortFilesBySize(this._files);
     } else {
-      this.sortFiles();
+      this._files = FSItem.sortByFilename(this._files);
     }
     if (opts.direction === 'descending') {
-      this.folders.reverse();
-      this.files.reverse();
+      this._folders.reverse();
+      this._files.reverse();
     }
   }
 
   /**
-   * Sorts the folders of this FSItem alphabetically. Run getChildren() first.
-   * @returns {this} The current FSItem instance.
-   */
-  public sortFolders(): this {
-    this.folders.sort((a, b) => {
-      return compareDictValue(a as unknown as Dict, b as unknown as Dict, 'filename');
-    });
-    return this;
-  }
-
   /**
    * Sorts the files of this FSItem alphabetically.
    * @returns {this} The current FSItem instance.
    */
-  public sortFiles(): this {
-    this.files.sort((a, b) => {
+  static sortByFilename(items: FSItem[]): FSItem[] {
+    return items.sort((a, b) => {
       return compareDictValue(a as unknown as Dict, b as unknown as Dict, 'filename');
     });
-    return this;
   }
 
   /**
    * Sorts the files of this FSItem by size. Run getChildren() first.
    * @returns {this} The current FSItem instance.
    */
-  public sortFilesBySize(): this {
-    this.files.sort((a, b) => {
-      return compareDictValue(a as unknown as Dict, b as unknown as Dict, 'size');
-    });
-    return this;
+  static sortFilesBySize(items: FSItem[]): FSItem[] {
+    return items
+      .filter((item) => item.isFile())
+      .sort((a, b) => {
+        return compareDictValue(a as unknown as Dict, b as unknown as Dict, 'size');
+      });
   }
 
   /**
    * For files, calculate the checksum of this file
    * @returns {Promise<string>} A promise that resolves with the checksum of the file.
    */
-  checksum() {
+  checksum(): Promise<string> {
     return new Promise((resolve, reject) => {
       // @ts-ignore too picky
       checksum.file(this._f, (err, sum) => {
         if (err) {
           reject(this.newError(err));
         } else {
-          resolve(sum);
+          resolve(sum as string);
         }
       });
     });
