@@ -1,4 +1,3 @@
-import { DateUtil } from '@epdoc/timeutil';
 import {
   compareDictValue,
   deepCopy,
@@ -572,11 +571,18 @@ export class FSItem {
    * @returns {Promise<void>} A promise that resolves when the file or folder is removed.
    */
   remove(options: Deno.RemoveOptions = {}): Promise<void> {
-    return this.getStats().then(() => {
-      if (this._stats.exists()) {
-        return Deno.remove(this._f, options);
-      }
-    });
+    return this.getStats()
+      .then(() => {
+        if (this._stats.exists()) {
+          return Deno.remove(this._f, options);
+        }
+      })
+      .catch((err) => {
+        if (err && err.code === 'ENOTEMPTY') {
+          err.message += ', set recursive option to true to delete non-empty folders.';
+        }
+        return Promise.reject(err);
+      });
   }
 
   /**
@@ -780,24 +786,28 @@ export class FSItem {
    * @returns {Promise<Date | undefined>} A promise that resolves with the creation date of the PDF file, or undefined if not found.
    */
   getPdfDate(): Promise<Date | undefined> {
-    return new Promise((resolve, reject) => {
-      import('pdf2json').then(({ PDFParser }) => {
-        const pdfParser = new PDFParser();
-        pdfParser.on('readable', (resp: unknown) => {
-          if (isDict(resp) && isDict(resp.Meta) && isString(resp.Meta.CreationDate)) {
-            // const d = new Date(p[1], p[2], p[3], p[4], p[5], p[6]);
-            // d.tim;
-            const d = DateUtil.fromPdfDate(resp.Meta.CreationDate);
-            resolve(d ? d.date : undefined);
-          }
-          resolve(new Date(0));
-        });
-        pdfParser.on('pdfParser_dataError', (errObj: Record<'parserError', Error>) => {
-          reject(this.newError(errObj.parserError));
-        });
-        pdfParser.loadPDF(this._f);
+    let doc: unknown;
+    return import('npm:pdf-lib')
+      .then(({ PDFDocument }) => {
+        doc = PDFDocument;
+        if (doc) {
+          return Deno.readFile(this._f);
+        }
+      })
+      .then((arrayBuffer) => {
+        if (doc) {
+          // @ts-ignore we don't have types for pdf-lib
+          return doc.load(arrayBuffer, { updateMetadata: false });
+        }
+        return Promise.reject(new Error('No PDFDocument found'));
+      })
+      .then((pdf) => {
+        const pdfDate = pdf.getCreationDate();
+        if (pdfDate) {
+          return Promise.resolve(pdfDate);
+        }
+        return Promise.reject(new Error('No creation date found'));
       });
-    });
   }
 
   /**

@@ -15,7 +15,7 @@
         "--allow-sys",
         "--allow-read",
         "--allow-write",
-        "./test/fs.test.ts"
+        "./tests/fs.test.ts"
       ],
       "attachSimplePort": 9229
     },
@@ -33,7 +33,7 @@
         "--allow-sys",
         "--allow-read",
         "--allow-write",
-        "./test/fsbytes.test.ts"
+        "./tests/fsbytes.test.ts"
       ],
       "attachSimplePort": 9229
     },
@@ -51,7 +51,7 @@
         "--allow-sys",
         "--allow-read",
         "--allow-write",
-        "./test/fs2.test.ts"
+        "./tests/fs2.test.ts"
       ],
       "attachSimplePort": 9229
     },
@@ -69,7 +69,7 @@
         "--allow-sys",
         "--allow-read",
         "--allow-write",
-        "./test/fs3.test.ts"
+        "./tests/fs3.test.ts"
       ],
       "attachSimplePort": 9229
     }

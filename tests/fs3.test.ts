@@ -3,7 +3,7 @@ import { afterAll, beforeAll, describe, test } from 'jsr:@std/testing/bdd';
 import { Buffer } from 'node:buffer';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
-import { fsitem, type FSSortOpts } from '../mod.ts';
+import { FSItem, fsitem, type FSSortOpts } from '../mod.ts';
 
 const pwd: string = import.meta.dirname as string;
 
@@ -68,23 +68,23 @@ describe('FSItem Additional Tests', () => {
 
   test('sortFiles sorts files correctly', async () => {
     const item = fsitem(testDir);
-    await item.getFiles();
-    item.sortChildren();
-    expect(item.files[0].filename).toBe('test.json');
-    expect(item.files[1].filename).toBe('test.txt');
+    let files = await item.getFiles();
+    files = FSItem.sortByFilename(files);
+    expect(files[0].filename).toBe('test.json');
+    expect(files[1].filename).toBe('test.txt');
   });
 
   test('sortFolders sorts folders correctly', async () => {
     const item = fsitem(testSubDir);
-    await item.getFiles();
-    item.sortChildren();
-    expect(item.files[0].filename).toBe('file1.txt');
-    expect(item.files[1].filename).toBe('file2.txt');
+    let files = await item.getFiles();
+    files = FSItem.sortByFilename(files);
+    expect(files[0].filename).toBe('file1.txt');
+    expect(files[1].filename).toBe('file2.txt');
   });
 
   test('sortFilesBySize sorts files by size', async () => {
     const item = fsitem(testDir);
-    await item.getFiles();
+    await item.getChildren();
     item.sortChildren({ type: 'size' });
     expect(item.files[0].filename).toBe('test.json');
     expect(item.files[1].filename).toBe('test.txt');

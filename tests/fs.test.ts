@@ -4,10 +4,10 @@ import { expect } from 'jsr:@std/expect';
 import { afterAll, beforeEach, describe, it, test } from 'jsr:@std/testing/bdd';
 import os from 'node:os';
 import path from 'node:path';
-import process from 'node:process';
 import { FSItem, fsitem, FSStats, isFilename, isFilePath, isFolderPath, type SafeCopyOpts } from '../mod.ts';
 import { fileConflictStrategyType } from './../src/types.ts';
 
+const pwd = import.meta.dirname;
 const HOME = os.userInfo().homedir;
 const TEST_FILES = ['fs.test.ts', 'fs2.test.ts', 'fs3.test.ts', 'fsbytes.test.ts'];
 const TEST_FOLDERS = ['data', 'data1'];
@@ -44,7 +44,7 @@ describe('fsitem', () => {
       .then((resp) => {
         expect(isArray(resp)).toBe(true);
         expect(resp.length).toBe(TEST_FOLDERS.length);
-        console.log(resp.map((f) => f.filename));
+        // console.log(resp.map((f) => f.filename));
         resp = resp.sort();
         expect(resp[1].filename).toBe(TEST_FOLDERS[0]);
         expect(resp[0].filename).toBe(TEST_FOLDERS[1]);
@@ -64,7 +64,7 @@ describe('fsitem', () => {
         expect(isArray(resp)).toBe(true);
         expect(resp.length).toBe(TEST_FILES.length);
         resp = FSItem.sortByFilename(resp);
-        console.log(resp.map((f) => f.filename));
+        // console.log(resp.map((f) => f.filename));
         expect(resp[0].filename).toBe(TEST_FILES[0]);
         expect(resp[1].filename).toBe(TEST_FILES[1]);
         expect(resp[2].filename).toBe(TEST_FILES[2]);
@@ -75,7 +75,7 @@ describe('fsitem', () => {
         expect(isArray(resp)).toBe(true);
         expect(resp.length).toBe(TEST_FILES.length + 0);
         resp = FSItem.sortByFilename(resp);
-        console.log(resp.map((f) => f.filename));
+        // console.log(resp.map((f) => f.filename));
         expect(resp[0].filename).toBe(TEST_FILES[0]);
         expect(resp[1].filename).toBe(TEST_FILES[1]);
         expect(resp[2].filename).toBe(TEST_FILES[2]);
@@ -252,7 +252,7 @@ describe('fsitem', () => {
       .then((resp) => {
         expect(isValidDate(resp)).toBe(true);
         if (isDate(resp)) {
-          process.env.TZ = 'CST';
+          Deno.env.set('TZ', 'America/Costa_Rica');
           expect(new Date(resp).toISOString()).toBe('2018-02-01T00:00:00.000Z');
           expect(dateUtil(resp).toISOLocalString()).toBe('2018-01-31T18:00:00.000-06:00');
         }
@@ -400,7 +400,7 @@ describe('fsitem', () => {
       })
       .then((resp) => {
         expect(resp).toEqual(true);
-        return fsitem('./tests/data3').remove();
+        return fsitem('./tests/data3').remove({ recursive: true });
       })
       .then((resp) => {
         expect(resp).toBeUndefined();
@@ -531,7 +531,7 @@ describe('fsitem', () => {
   });
 
   it('readAsLines', async () => {
-    const filePath = path.join(__dirname, 'data/test-files', 'continuation_sample.txt');
+    const filePath = path.join(pwd as string, 'data/test-files', 'continuation_sample.txt');
     const fsItem = new FSItem(filePath);
 
     const lines = await fsItem.readAsLines('\\');
